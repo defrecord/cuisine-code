@@ -1,0 +1,23 @@
+graph TD
+    A[Development] --> B[Git Repository]
+    B --> C[CI/CD Pipeline]
+    
+    C --> D[Build System]
+    D --> E[Scheme Compilation]
+    D --> F[C Compilation]
+    D --> G[WASM Compilation]
+    D --> H[JavaScript Bundling]
+    
+    E --> I[Native Package]
+    F --> J[C Library]
+    G --> K[WASM Module]
+    H --> L[Web Frontend]
+    
+    I --> M[FreeBSD Package]
+    J --> N[Native Applications]
+    K --> O[CDN Deployment]
+    L --> O
+    
+    O --> P[Web Users]
+    M --> Q[FreeBSD Users]
+    N --> R[Desktop Users]

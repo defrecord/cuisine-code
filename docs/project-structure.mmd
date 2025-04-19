@@ -1,0 +1,20 @@
+graph TD
+    A[Project Root] --> B[scheme/]
+    A --> C[web/]
+    A --> D[c-output/]
+    A --> E[docs/]
+    A --> F[tools/]
+    
+    B --> G[src/]
+    B --> H[tests/]
+    
+    G --> I[core/]
+    G --> J[game/]
+    G --> K[ui/]
+    G --> L[social/]
+    
+    C --> M[src/]
+    C --> N[wasm/]
+    
+    F --> O[scheme-to-c.scm]
+    F --> P[c-to-wasm.sh]

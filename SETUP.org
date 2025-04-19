@@ -1,0 +1,1778 @@
+#+TITLE: Cuisine Code Setup
+#+AUTHOR: Aidan Pace
+#+EMAIL: apace@defrecord.com
+#+DATE: 2025-04-19
+
+* Introduction
+
+This document contains all setup instructions and configurations for the Cuisine Code project. By tangling this file, you can generate the entire project structure, including directories, source files, build configurations, and testing infrastructure.
+
+* Project Structure
+** Directory Layout
+
+#+BEGIN_SRC bash :tangle scripts/create-dirs.sh :mkdirp yes
+#!/bin/bash
+# Create the base project structure for Cuisine Code
+
+# Root level directories
+mkdir -p scheme/src/{core,game,ui,social,server}
+mkdir -p scheme/tests/{core,game,ui,social,server}
+mkdir -p web/{src/{js,css,assets},wasm}
+mkdir -p c-output/{src,build}
+mkdir -p tools
+mkdir -p docs/{api,diagrams}
+mkdir -p scripts
+mkdir -p config
+
+# Core subdirectories
+mkdir -p scheme/src/core/{kitchen,ingredients,transformations,recipes}
+mkdir -p scheme/src/game/{levels,challenges,scoring,tutorial}
+mkdir -p scheme/src/ui/{terminal,browser,ascii-art,messages}
+mkdir -p scheme/src/social/{auth,profiles,sharing,collaboration}
+mkdir -p scheme/src/server/{api,db,oauth}
+
+# Web structure
+mkdir -p web/src/js/{kitchen,recipes,ui,auth}
+mkdir -p web/src/css/{base,components,themes}
+mkdir -p web/src/assets/{icons,fonts,images}
+
+# Documentation structure
+mkdir -p docs/api/{kitchen,recipe,social,integration}
+mkdir -p docs/diagrams/{architecture,flows,components}
+
+echo "Directory structure created successfully!"
+#+END_SRC
+
+* Development Environment
+** Dependencies
+
+#+BEGIN_SRC bash :tangle scripts/deps.sh :mkdirp yes
+#!/bin/bash
+# Install dependencies for Cuisine Code development
+
+# Check for FreeBSD
+if [ "$(uname)" == "FreeBSD" ]; then
+    echo "Installing FreeBSD dependencies..."
+    
+    # Core dependencies
+    pkg install -y guile3
+    pkg install -y emscripten
+    pkg install -y node npm
+    pkg install -y git
+    pkg install -y gmake
+    pkg install -y clang
+    
+    # Documentation tools
+    pkg install -y mermaid-cli
+    pkg install -y openapi-generator
+    
+    # Testing tools
+    pkg install -y guile-test
+    
+    echo "FreeBSD dependencies installed successfully!"
+else
+    echo "This script is designed for FreeBSD. Please adapt for your OS."
+    exit 1
+fi
+
+# Node.js dependencies
+echo "Installing Node.js dependencies..."
+npm install --prefix ./web
+
+echo "All dependencies installed successfully!"
+#+END_SRC
+
+** Development Tools
+
+#+BEGIN_SRC bash :tangle tools/setup-dev.sh :mkdirp yes
+#!/bin/bash
+# Setup development environment
+
+# Create Git hooks
+mkdir -p .git/hooks
+
+cat > .git/hooks/pre-commit << 'EOF'
+#!/bin/bash
+# Pre-commit hook for Cuisine Code
+
+# Run tests
+echo "Running tests..."
+make test
+
+# Check for syntax errors in Scheme files
+echo "Checking Scheme syntax..."
+find scheme -name "*.scm" -exec guile -c "(load \"{}\")" \; 2>/dev/null
+
+# If any command failed, prevent the commit
+if [ $? -ne 0 ]; then
+  echo "Tests or syntax checks failed. Commit aborted."
+  exit 1
+fi
+
+echo "Pre-commit checks passed."
+EOF
+
+chmod +x .git/hooks/pre-commit
+
+echo "Development tools setup completed!"
+#+END_SRC
+
+* Core Implementation
+** Kitchen Core
+*** Stack Implementation
+
+#+BEGIN_SRC scheme :tangle scheme/src/core/kitchen/stack.scm :mkdirp yes
+;;; stack.scm -- Stack implementation for Cuisine Code kitchen
+;;; Copyright (c) 2025 Aidan Pace
+
+(define-module (cuisine-code core kitchen stack)
+  #:export (make-stack
+            stack-push
+            stack-pop
+            stack-peek
+            stack-swap
+            stack-dup
+            stack-rot
+            stack-size
+            stack->list))
+
+;; Create a new stack
+(define (make-stack)
+  (let ((items '()))
+    ;; Return a dispatch procedure
+    (lambda (operation . args)
+      (case operation
+        ((push) (set! items (cons (car args) items)))
+        ((pop) 
+         (if (null? items)
+             (error "Cannot pop from empty stack")
+             (let ((top (car items)))
+               (set! items (cdr items))
+               top)))
+        ((peek) 
+         (if (null? items)
+             (error "Cannot peek empty stack")
+             (car items)))
+        ((swap) 
+         (if (< (length items) 2)
+             (error "Need at least two items to swap")
+             (set! items (cons (cadr items)
+                               (cons (car items)
+                                     (cddr items))))))
+        ((dup) 
+         (if (null? items)
+             (error "Cannot duplicate from empty stack")
+             (set! items (cons (car items) items))))
+        ((rot) 
+         (if (< (length items) 3)
+             (error "Need at least three items to rotate")
+             (set! items (cons (caddr items)
+                               (cons (car items)
+                                     (cons (cadr items)
+                                           (cdddr items)))))))
+        ((size) (length items))
+        ((->list) items)
+        (else (error "Unknown stack operation" operation))))))
+
+;; Helper functions for stack operations
+(define (stack-push stack item)
+  (stack 'push item))
+
+(define (stack-pop stack)
+  (stack 'pop))
+
+(define (stack-peek stack)
+  (stack 'peek))
+
+(define (stack-swap stack)
+  (stack 'swap))
+
+(define (stack-dup stack)
+  (stack 'dup))
+
+(define (stack-rot stack)
+  (stack 'rot))
+
+(define (stack-size stack)
+  (stack 'size))
+
+(define (stack->list stack)
+  (stack '->list))
+#+END_SRC
+
+*** Kitchen Interface
+
+#+BEGIN_SRC scheme :tangle scheme/src/core/kitchen/kitchen.scm :mkdirp yes
+;;; kitchen.scm -- Main kitchen interface for Cuisine Code
+;;; Copyright (c) 2025 Aidan Pace
+
+(define-module (cuisine-code core kitchen kitchen)
+  #:use-module (cuisine-code core kitchen stack)
+  #:use-module (cuisine-code core ingredients store)
+  #:use-module (cuisine-code core transformations registry)
+  #:export (make-kitchen))
+
+;; Create a new kitchen environment
+(define (make-kitchen)
+  (let ((stack (make-stack))
+        (pantry (make-ingredient-store))
+        (transformations (make-transformation-registry)))
+    
+    ;; Return a dispatch procedure
+    (lambda (command . args)
+      (case command
+        ;; Stack operations
+        ((push) (stack-push stack (car args)))
+        ((pop) (stack-pop stack))
+        ((peek) (stack-peek stack))
+        ((swap) (stack-swap stack))
+        ((dup) (stack-dup stack))
+        ((rot) (stack-rot stack))
+        ((stack) (stack->list stack))
+        
+        ;; Pantry operations
+        ((add-ingredient) (pantry 'add (car args) (cadr args)))
+        ((get-ingredient) (pantry 'get (car args)))
+        ((list-ingredients) (pantry 'list))
+        
+        ;; Transformation operations
+        ((transform)
+         (let* ((name (car args))
+                (params (if (null? (cdr args)) '() (cadr args)))
+                (transform-fn (transformations 'get name)))
+           (if transform-fn
+               (let ((ingredients (stack-pop stack)))
+                 (stack-push stack (apply transform-fn ingredients params)))
+               (error "Unknown transformation" name))))
+        
+        ((register-transformation)
+         (transformations 'register (car args) (cadr args)))
+        
+        ((list-transformations)
+         (transformations 'list))
+        
+        ;; Unknown command
+        (else (error "Unknown kitchen command" command))))))
+#+END_SRC
+
+** Ingredient System
+*** Ingredient Data Structure
+
+#+BEGIN_SRC scheme :tangle scheme/src/core/ingredients/ingredient.scm :mkdirp yes
+;;; ingredient.scm -- Ingredient data structure for Cuisine Code
+;;; Copyright (c) 2025 Aidan Pace
+
+(define-module (cuisine-code core ingredients ingredient)
+  #:export (make-ingredient
+            ingredient-name
+            ingredient-properties
+            ingredient-property
+            set-ingredient-property!))
+
+;; Create a new ingredient
+(define (make-ingredient name properties)
+  (let ((data (cons name properties)))
+    ;; Return a dispatch procedure
+    (lambda (operation . args)
+      (case operation
+        ((name) (car data))
+        ((properties) (cdr data))
+        ((property) 
+         (let ((prop (car args)))
+           (assoc-ref (cdr data) prop)))
+        ((set-property!)
+         (let ((prop (car args))
+               (value (cadr args)))
+           (set-cdr! data 
+                     (assoc-set! (cdr data) prop value))))
+        (else (error "Unknown ingredient operation" operation))))))
+
+;; Helper functions for ingredient operations
+(define (ingredient-name ingredient)
+  (ingredient 'name))
+
+(define (ingredient-properties ingredient)
+  (ingredient 'properties))
+
+(define (ingredient-property ingredient prop)
+  (ingredient 'property prop))
+
+(define (set-ingredient-property! ingredient prop value)
+  (ingredient 'set-property! prop value))
+#+END_SRC
+
+*** Ingredient Store
+
+#+BEGIN_SRC scheme :tangle scheme/src/core/ingredients/store.scm :mkdirp yes
+;;; store.scm -- Ingredient storage for Cuisine Code
+;;; Copyright (c) 2025 Aidan Pace
+
+(define-module (cuisine-code core ingredients store)
+  #:use-module (cuisine-code core ingredients ingredient)
+  #:export (make-ingredient-store))
+
+;; Create a new ingredient store (pantry)
+(define (make-ingredient-store)
+  (let ((ingredients (make-hash-table)))
+    ;; Return a dispatch procedure
+    (lambda (operation . args)
+      (case operation
+        ((add)
+         (let ((name (car args))
+               (properties (cadr args)))
+           (hash-table-set! ingredients name 
+                           (make-ingredient name properties))))
+        
+        ((get)
+         (let ((name (car args)))
+           (or (hash-table-ref ingredients name #f)
+               (error "Ingredient not found" name))))
+        
+        ((remove)
+         (let ((name (car args)))
+           (hash-table-delete! ingredients name)))
+        
+        ((list)
+         (hash-table-keys ingredients))
+        
+        ((count)
+         (hash-table-size ingredients))
+        
+        (else (error "Unknown ingredient store operation" operation))))))
+#+END_SRC
+
+** Transformation System
+*** Transformation Registry
+
+#+BEGIN_SRC scheme :tangle scheme/src/core/transformations/registry.scm :mkdirp yes
+;;; registry.scm -- Transformation registry for Cuisine Code
+;;; Copyright (c) 2025 Aidan Pace
+
+(define-module (cuisine-code core transformations registry)
+  #:export (make-transformation-registry
+            register-basic-transformations))
+
+;; Create a new transformation registry
+(define (make-transformation-registry)
+  (let ((transformations (make-hash-table)))
+    ;; Return a dispatch procedure
+    (lambda (operation . args)
+      (case operation
+        ((register)
+         (let ((name (car args))
+               (function (cadr args)))
+           (hash-table-set! transformations name function)))
+        
+        ((get)
+         (let ((name (car args)))
+           (or (hash-table-ref transformations name #f)
+               (error "Transformation not found" name))))
+        
+        ((list)
+         (hash-table-keys transformations))
+        
+        ((count)
+         (hash-table-size transformations))
+        
+        (else (error "Unknown transformation registry operation" operation))))))
+
+;; Register basic cooking transformations
+(define (register-basic-transformations registry)
+  ;; Mechanical transformations
+  (registry 'register 'chop
+           (lambda (ingredient . args)
+             (let ((style (if (null? args) 'medium (car args))))
+               (string-append (symbol->string style) "-chopped-" ingredient))))
+  
+  (registry 'register 'dice
+           (lambda (ingredient . args)
+             (let ((size (if (null? args) 'medium (car args))))
+               (string-append (symbol->string size) "-diced-" ingredient))))
+  
+  (registry 'register 'mince
+           (lambda (ingredient . args)
+             (string-append "minced-" ingredient)))
+  
+  ;; Thermal transformations
+  (registry 'register 'heat
+           (lambda (ingredient . args)
+             (let ((temp (if (null? args) 'medium (car args))))
+               (string-append (symbol->string temp) "-heated-" ingredient))))
+  
+  (registry 'register 'saute
+           (lambda (ingredient . args)
+             (string-append "sauteed-" ingredient)))
+  
+  (registry 'register 'bake
+           (lambda (ingredient . args)
+             (let ((temp (if (null? args) 'medium (car args))))
+               (string-append "baked-" ingredient))))
+  
+  ;; Mixing transformations
+  (registry 'register 'combine
+           (lambda (ingredients . args)
+             (if (list? ingredients)
+                 (string-append "combined-" (string-join ingredients "-and-"))
+                 (error "Combine requires a list of ingredients"))))
+  
+  (registry 'register 'fold
+           (lambda (ingredients . args)
+             (if (list? ingredients)
+                 (string-append "folded-" (string-join ingredients "-into-"))
+                 (error "Fold requires a list of ingredients"))))
+  
+  ;; Return the registry
+  registry)
+#+END_SRC
+
+*** Basic Transformations
+
+#+BEGIN_SRC scheme :tangle scheme/src/core/transformations/basic.scm :mkdirp yes
+;;; basic.scm -- Basic culinary transformations for Cuisine Code
+;;; Copyright (c) 2025 Aidan Pace
+
+(define-module (cuisine-code core transformations basic)
+  #:use-module (cuisine-code core ingredients ingredient)
+  #:export (chop
+            dice
+            mince
+            slice
+            julienne
+            brunoise
+            combine
+            fold
+            whip
+            knead))
+
+;; Mechanical transformations
+
+(define (chop ingredient style)
+  "Chop an ingredient with the specified style."
+  (let ((name (ingredient-name ingredient))
+        (props (ingredient-properties ingredient)))
+    (make-ingredient 
+     (string-append "chopped-" name)
+     (assoc-set! props 'preparation 
+                 (string-append "chopped-" (symbol->string style))))))
+
+(define (dice ingredient size)
+  "Dice an ingredient into cubes of the specified size."
+  (let ((name (ingredient-name ingredient))
+        (props (ingredient-properties ingredient)))
+    (make-ingredient 
+     (string-append "diced-" name)
+     (assoc-set! props 'preparation 
+                 (string-append "diced-" (symbol->string size))))))
+
+(define (mince ingredient)
+  "Mince an ingredient very finely."
+  (let ((name (ingredient-name ingredient))
+        (props (ingredient-properties ingredient)))
+    (make-ingredient 
+     (string-append "minced-" name)
+     (assoc-set! props 'preparation "minced"))))
+
+(define (slice ingredient thickness)
+  "Slice an ingredient with the specified thickness."
+  (let ((name (ingredient-name ingredient))
+        (props (ingredient-properties ingredient)))
+    (make-ingredient 
+     (string-append "sliced-" name)
+     (assoc-set! props 'preparation 
+                 (string-append "sliced-" (symbol->string thickness))))))
+
+(define (julienne ingredient)
+  "Cut an ingredient into thin matchstick-like strips."
+  (let ((name (ingredient-name ingredient))
+        (props (ingredient-properties ingredient)))
+    (make-ingredient 
+     (string-append "julienned-" name)
+     (assoc-set! props 'preparation "julienned"))))
+
+(define (brunoise ingredient)
+  "Cut an ingredient into very small cubes."
+  (let ((name (ingredient-name ingredient))
+        (props (ingredient-properties ingredient)))
+    (make-ingredient 
+     (string-append "brunoise-" name)
+     (assoc-set! props 'preparation "brunoise"))))
+
+;; Mixing transformations
+
+(define (combine ingredients)
+  "Combine multiple ingredients together."
+  (let ((names (map ingredient-name ingredients))
+        (all-props (map ingredient-properties ingredients)))
+    (make-ingredient 
+     (string-join names "-")
+     (list (cons 'components ingredients)
+           (cons 'preparation "combined")))))
+
+(define (fold ingredients)
+  "Gently fold ingredients together, preserving texture."
+  (let ((names (map ingredient-name ingredients))
+        (all-props (map ingredient-properties ingredients)))
+    (make-ingredient 
+     (string-join names "-folded")
+     (list (cons 'components ingredients)
+           (cons 'preparation "folded")))))
+
+(define (whip ingredient)
+  "Whip an ingredient to incorporate air."
+  (let ((name (ingredient-name ingredient))
+        (props (ingredient-properties ingredient)))
+    (make-ingredient 
+     (string-append "whipped-" name)
+     (assoc-set! props 'preparation "whipped"))))
+
+(define (knead ingredient duration)
+  "Knead an ingredient for the specified duration."
+  (let ((name (ingredient-name ingredient))
+        (props (ingredient-properties ingredient)))
+    (make-ingredient 
+     (string-append "kneaded-" name)
+     (assoc-set! (assoc-set! props 'preparation "kneaded")
+                'duration duration))))
+#+END_SRC
+
+** Recipe System
+*** Recipe Definition
+
+#+BEGIN_SRC scheme :tangle scheme/src/core/recipes/definition.scm :mkdirp yes
+;;; definition.scm -- Recipe definition for Cuisine Code
+;;; Copyright (c) 2025 Aidan Pace
+
+(define-module (cuisine-code core recipes definition)
+  #:export (make-recipe
+            define-recipe
+            recipe-name
+            recipe-category
+            recipe-difficulty
+            recipe-description
+            recipe-ingredients
+            recipe-steps
+            recipe-expected-result))
+
+;; Create a new recipe
+(define (make-recipe name category difficulty description ingredients steps expected-result)
+  (let ((data (list (cons 'name name)
+                    (cons 'category category)
+                    (cons 'difficulty difficulty)
+                    (cons 'description description)
+                    (cons 'ingredients ingredients)
+                    (cons 'steps steps)
+                    (cons 'expected-result expected-result))))
+    ;; Return a dispatch procedure
+    (lambda (operation . args)
+      (case operation
+        ((name) (assoc-ref data 'name))
+        ((category) (assoc-ref data 'category))
+        ((difficulty) (assoc-ref data 'difficulty))
+        ((description) (assoc-ref data 'description))
+        ((ingredients) (assoc-ref data 'ingredients))
+        ((steps) (assoc-ref data 'steps))
+        ((expected-result) (assoc-ref data 'expected-result))
+        (else (error "Unknown recipe operation" operation))))))
+
+;; Macro for defining recipes
+(define-syntax define-recipe
+  (syntax-rules (:name :category :difficulty :description :ingredients :steps :expected-result)
+    ((_ recipe-id
+        :name name
+        :category category
+        :difficulty difficulty
+        :description description
+        :ingredients ingredients
+        :steps steps
+        :expected-result expected-result)
+     (define recipe-id
+       (make-recipe name
+                    category
+                    difficulty
+                    description
+                    ingredients
+                    steps
+                    expected-result)))))
+
+;; Helper functions for recipe operations
+(define (recipe-name recipe)
+  (recipe 'name))
+
+(define (recipe-category recipe)
+  (recipe 'category))
+
+(define (recipe-difficulty recipe)
+  (recipe 'difficulty))
+
+(define (recipe-description recipe)
+  (recipe 'description))
+
+(define (recipe-ingredients recipe)
+  (recipe 'ingredients))
+
+(define (recipe-steps recipe)
+  (recipe 'steps))
+
+(define (recipe-expected-result recipe)
+  (recipe 'expected-result))
+#+END_SRC
+
+*** Recipe Execution
+
+#+BEGIN_SRC scheme :tangle scheme/src/core/recipes/execution.scm :mkdirp yes
+;;; execution.scm -- Recipe execution for Cuisine Code
+;;; Copyright (c) 2025 Aidan Pace
+
+(define-module (cuisine-code core recipes execution)
+  #:use-module (cuisine-code core kitchen kitchen)
+  #:use-module (cuisine-code core recipes definition)
+  #:export (execute-recipe
+            step-recipe))
+
+;; Execute a complete recipe
+(define (execute-recipe kitchen recipe)
+  (let ((steps (recipe-steps recipe)))
+    ;; Execute each step in sequence
+    (for-each (lambda (step)
+                (apply-step kitchen step))
+              steps)
+    ;; Return the top item on the stack as the result
+    (kitchen 'peek)))
+
+;; Execute a single step of a recipe
+(define (step-recipe kitchen recipe step-index)
+  (let ((steps (recipe-steps recipe)))
+    (if (< step-index (length steps))
+        (apply-step kitchen (list-ref steps step-index))
+        (error "Step index out of bounds" step-index))))
+
+;; Apply a single recipe step to the kitchen
+(define (apply-step kitchen step)
+  (let ((operation (car step))
+        (args (cdr step)))
+    (case operation
+      ((push) (apply kitchen 'push args))
+      ((pop) (kitchen 'pop))
+      ((swap) (kitchen 'swap))
+      ((dup) (kitchen 'dup))
+      ((rot) (kitchen 'rot))
+      ((transform) (apply kitchen 'transform args))
+      (else (error "Unknown recipe step operation" operation)))))
+#+END_SRC
+
+*** Recipe Library
+
+#+BEGIN_SRC scheme :tangle scheme/src/core/recipes/library.scm :mkdirp yes
+;;; library.scm -- Recipe library for Cuisine Code
+;;; Copyright (c) 2025 Aidan Pace
+
+(define-module (cuisine-code core recipes library)
+  #:use-module (cuisine-code core recipes definition)
+  #:export (make-recipe-library
+            standard-recipes))
+
+;; Create a new recipe library
+(define (make-recipe-library)
+  (let ((recipes (make-hash-table)))
+    ;; Return a dispatch procedure
+    (lambda (operation . args)
+      (case operation
+        ((add) 
+         (let ((recipe (car args)))
+           (hash-table-set! recipes (recipe 'name) recipe)))
+        
+        ((get)
+         (let ((name (car args)))
+           (or (hash-table-ref recipes name #f)
+               (error "Recipe not found" name))))
+        
+        ((remove)
+         (let ((name (car args)))
+           (hash-table-delete! recipes name)))
+        
+        ((list)
+         (hash-table-keys recipes))
+        
+        ((list-by-category)
+         (let ((category (car args))
+               (matching '()))
+           (hash-table-for-each
+            recipes
+            (lambda (name recipe)
+              (if (equal? (recipe 'category) category)
+                  (set! matching (cons recipe matching)))))
+           matching))
+        
+        ((list-by-difficulty)
+         (let ((difficulty (car args))
+               (matching '()))
+           (hash-table-for-each
+            recipes
+            (lambda (name recipe)
+              (if (equal? (recipe 'difficulty) difficulty)
+                  (set! matching (cons recipe matching)))))
+           matching))
+        
+        (else (error "Unknown recipe library operation" operation))))))
+
+;; Create a library with standard recipes
+(define (standard-recipes)
+  (let ((library (make-recipe-library)))
+    ;; Add some basic recipes
+    
+    ;; Compound Butter
+    (library 'add
+             (make-recipe 
+              "Herb Compound Butter"
+              "Basics"
+              'beginner
+              "A simple herb-infused butter for enhancing dishes."
+              '(("butter" 250 "g")
+                ("herbs" 30 "g")
+                ("garlic" 2 "cloves")
+                ("salt" 5 "g"))
+              '((push "butter")
+                (transform 'soften '((temperature . 20)))
+                (push "herbs")
+                (transform 'chop '((style . 'fine)))
+                (push "garlic")
+                (transform 'mince)
+                (push "salt")
+                (transform 'combine)
+                (transform 'shape '((form . 'log)))
+                (transform 'chill '((duration . 120))))
+              '((type . "compound-butter")
+                (properties . ((state . 'solid)
+                              (flavor . 'herb-garlic))))))
+    
+    ;; Basic Mirepoix
+    (library 'add
+             (make-recipe 
+              "Basic Mirepoix"
+              "Basics"
+              'beginner
+              "The aromatic flavor base of French cuisine."
+              '(("onion" 1 "medium")
+                ("carrot" 2 "medium")
+                ("celery" 2 "stalks"))
+              '((push "onion")
+                (transform 'dice '((size . 'small)))
+                (push "carrot")
+                (transform 'dice '((size . 'small)))
+                (push "celery")
+                (transform 'dice '((size . 'small)))
+                (transform 'combine)
+                (transform 'sweat '((duration . 10))))
+              '((type . "mirepoix")
+                (properties . ((state . 'cooked)
+                              (flavor . 'aromatic))))))
+    
+    ;; Return the library
+    library))
+#+END_SRC
+
+* User Interface
+** Terminal UI
+*** ASCII Art
+
+#+BEGIN_SRC scheme :tangle scheme/src/ui/ascii-art/ingredients.scm :mkdirp yes
+;;; ingredients.scm -- ASCII art for ingredients
+;;; Copyright (c) 2025 Aidan Pace
+
+(define-module (cuisine-code ui ascii-art ingredients)
+  #:export (ingredient->ascii))
+
+;; Convert an ingredient to ASCII art
+(define (ingredient->ascii ingredient)
+  (let ((name (if (string? ingredient) 
+                  ingredient 
+                  (ingredient 'name))))
+    (case (string->symbol name)
+      ((butter)
+       '("  ____________ "
+         " /           /|"
+         "/___________ / |"
+         "|  BUTTER   |  |"
+         "|           |  |"
+         "|___________|/ "))
+      
+      ((herbs)
+       '("    \\|/   "
+         "    \\|/   "
+         "  \\_\\|/_/ "
+         "    \\|/   "
+         "     |    "
+         "     |    "))
+      
+      ((garlic)
+       '("      __     "
+         "    /   \\   "
+         "   |     |  "
+         "   \\     /  "
+         "    \\___/   "
+         "      |     "))
+      
+      ((salt)
+       '("   _______   "
+         "  /       \\  "
+         " |  SALT   | "
+         " |         | "
+         " |_________| "
+         "             "))
+      
+      ((onion)
+       '("      __     "
+         "    /    \\   "
+         "   |      |  "
+         "   |      |  "
+         "    \\____/   "
+         "             "))
+      
+      ((carrot)
+       '("         ^     "
+         "        / \\    "
+         "       /   \\   "
+         "      /     \\  "
+         "     /       \\ "
+         "    /_________\\"))
+      
+      ((celery)
+       '("    |||    "
+         "    |||    "
+         "    |||    "
+         "    |||    "
+         "    |||    "
+         "    |||    "))
+      
+      (else
+       '("   _______   "
+         "  /       \\  "
+         " |         | "
+         " |         | "
+         " |_________| "
+         "             ")))))
+#+END_SRC
+
+*** Terminal Interface
+
+#+BEGIN_SRC scheme :tangle scheme/src/ui/terminal/interface.scm :mkdirp yes
+;;; interface.scm -- Terminal interface for Cuisine Code
+;;; Copyright (c) 2025 Aidan Pace
+
+(define-module (cuisine-code ui terminal interface)
+  #:use-module (cuisine-code core kitchen kitchen)
+  #:use-module (cuisine-code ui ascii-art ingredients)
+  #:export (run-terminal-interface))
+
+;; Run the terminal interface
+(define (run-terminal-interface)
+  (let ((kitchen (make-kitchen)))
+    (display "Welcome to Cuisine Code Terminal Interface\n")
+    (display "Type 'help' for commands, 'quit' to exit\n\n")
+    
+    (let loop ()
+      (display "kitchen> ")
+      (let ((input (read-line)))
+        (cond
+         ((eof-object? input)
+          (display "\nGoodbye!\n"))
+         
+         ((string=? input "quit")
+          (display "Goodbye!\n"))
+         
+         ((string=? input "help")
+          (display-help)
+          (loop))
+         
+         ((string=? input "stack")
+          (display-stack kitchen)
+          (loop))
+         
+         ((string-prefix? "push " input)
+          (let ((ingredient (substring input 5)))
+            (kitchen 'push ingredient)
+            (display "Pushed: ")
+            (display ingredient)
+            (newline)
+            (loop)))
+         
+         ((string=? input "pop")
+          (let ((item (kitchen 'pop)))
+            (display "Popped: ")
+            (display item)
+            (newline)
+            (loop)))
+         
+         ((string=? input "swap")
+          (kitchen 'swap)
+          (display "Swapped top two items\n")
+          (loop))
+         
+         ((string=? input "dup")
+          (kitchen 'dup)
+          (display "Duplicated top item\n")
+          (loop))
+         
+         ((string-prefix? "transform " input)
+          (let* ((rest (substring input 10))
+                 (space-pos (string-index rest #\space))
+                 (transform (if space-pos
+                               (substring rest 0 space-pos)
+                               rest))
+                 (params (if space-pos
+                            (read-from-string (substring rest (+ space-pos 1)))
+                            '())))
+            (kitchen 'transform (string->symbol transform) params)
+            (display "Applied transformation: ")
+            (display transform)
+            (newline)
+            (loop)))
+         
+         (else
+          (display "Unknown command: ")
+          (display input)
+          (newline)
+          (loop)))))))
+
+;; Display help information
+(define (display-help)
+  (display "\nAvailable commands:\n")
+  (display "  help              - Display this help\n")
+  (display "  stack             - Display the current stack\n")
+  (display "  push <ingredient> - Push an ingredient onto the stack\n")
+  (display "  pop               - Remove the top item from the stack\n")
+  (display "  swap              - Swap the top two items on the stack\n")
+  (display "  dup               - Duplicate the top item on the stack\n")
+  (display "  transform <name>  - Apply a transformation\n")
+  (display "  quit              - Exit the program\n\n"))
+
+;; Display the stack with ASCII art
+(define (display-stack kitchen)
+  (let ((items (kitchen 'stack)))
+    (if (null? items)
+        (display "Stack is empty\n")
+        (begin
+          (display "Stack (top to bottom):\n")
+          (for-each
+           (lambda (item)
+             (display "-----------------------\n")
+             (let ((art (ingredient->ascii item)))
+               (for-each (lambda (line) 
+                           (display line) 
+                           (newline)) 
+                         art))
+             (display item)
+             (newline))
+           items)))))
+
+;; Helper function to read from a string
+(define (read-from-string str)
+  (call-with-input-string str read))
+#+END_SRC
+
+** Browser UI
+*** Kitchen Visualization
+
+#+BEGIN_SRC javascript :tangle web/src/js/kitchen/visualization.js :mkdirp yes
+/**
+ * Kitchen visualization component for Cuisine Code
+ * Copyright (c) 2025 Aidan Pace
+ */
+
+import { renderIngredient } from './ingredients.js';
+
+/**
+ * Creates a visualization of the kitchen stack
+ */
+export class KitchenVisualization {
+  constructor(containerElement) {
+    this.container = containerElement;
+    this.stack = [];
+    this.init();
+  }
+  
+  /**
+   * Initialize the visualization
+   */
+  init() {
+    this.container.innerHTML = '';
+    this.stackElement = document.createElement('div');
+    this.stackElement.className = 'kitchen-stack';
+    this.container.appendChild(this.stackElement);
+    
+    this.controlsElement = document.createElement('div');
+    this.controlsElement.className = 'kitchen-controls';
+    this.container.appendChild(this.controlsElement);
+    
+    this.setupControls();
+    this.render();
+  }
+  
+  /**
+   * Set up kitchen controls
+   */
+  setupControls() {
+    // Pop button
+    const popButton = document.createElement('button');
+    popButton.textContent = 'Pop';
+    popButton.addEventListener('click', () => this.pop());
+    this.controlsElement.appendChild(popButton);
+    
+    // Swap button
+    const swapButton = document.createElement('button');
+    swapButton.textContent = 'Swap';
+    swapButton.addEventListener('click', () => this.swap());
+    this.controlsElement.appendChild(swapButton);
+    
+    // Dup button
+    const dupButton = document.createElement('button');
+    dupButton.textContent = 'Duplicate';
+    dupButton.addEventListener('click', () => this.dup());
+    this.controlsElement.appendChild(dupButton);
+    
+    // Add ingredients section
+    const ingredientsSection = document.createElement('div');
+    ingredientsSection.className = 'ingredients-section';
+    
+    const ingredientInput = document.createElement('input');
+    ingredientInput.type = 'text';
+    ingredientInput.placeholder = 'Ingredient name';
+    ingredientsSection.appendChild(ingredientInput);
+    
+    const pushButton = document.createElement('button');
+    pushButton.textContent = 'Push';
+    pushButton.addEventListener('click', () => {
+      if (ingredientInput.value.trim()) {
+        this.push(ingredientInput.value.trim());
+        ingredientInput.value = '';
+      }
+    });
+    ingredientsSection.appendChild(pushButton);
+    
+    this.controlsElement.appendChild(ingredientsSection);
+  }
+  
+  /**
+   * Update the stack and visualize changes
+   */
+  updateStack(newStack) {
+    this.stack = newStack;
+    this.render();
+  }
+  
+  /**
+   * Push an item onto the stack
+   */
+  push(item) {
+    this.stack.unshift(item);
+    this.render();
+  }
+  
+  /**
+   * Pop an item from the stack
+   */
+  pop() {
+    if (this.stack.length > 0) {
+      const item = this.stack.shift();
+      this.render();
+      return item;
+    }
+    return null;
+  }
+  
+  /**
+   * Swap the top two items
+   */
+  swap() {
+    if (this.stack.length >= 2) {
+      const temp = this.stack[0];
+      this.stack[0] = this.stack[1];
+      this.stack[1] = temp;
+      this.render();
+    }
+  }
+  
+  /**
+   * Duplicate the top item
+   */
+  dup() {
+    if (this.stack.length > 0) {
+      const item = this.stack[0];
+      this.stack.unshift(item);
+      this.render();
+    }
+  }
+  
+  /**
+   * Render the stack visualization
+   */
+  render() {
+    this.stackElement.innerHTML = '';
+    
+    if (this.stack.length === 0) {
+      const emptyMessage = document.createElement('div');
+      emptyMessage.className = 'empty-stack-message';
+      emptyMessage.textContent = 'Stack is empty';
+      this.stackElement.appendChild(emptyMessage);
+      return;
+    }
+    
+    for (const item of this.stack) {
+      const itemElement = document.createElement('div');
+      itemElement.className = 'stack-item';
+      
+      const visual = renderIngredient(item);
+      itemElement.appendChild(visual);
+      
+      const label = document.createElement('div');
+      label.className = 'item-label';
+      label.textContent = item;
+      itemElement.appendChild(label);
+      
+      this.stackElement.appendChild(itemElement);
+    }
+  }
+}
+#+END_SRC
+
+*** Recipe UI
+
+#+BEGIN_SRC javascript :tangle web/src/js/recipes/ui.js :mkdirp yes
+/**
+ * Recipe UI component for Cuisine Code
+ * Copyright (c) 2025 Aidan Pace
+ */
+
+/**
+ * Creates a recipe visualization and execution UI
+ */
+export class RecipeUI {
+  constructor(containerElement, kitchenVisualization) {
+    this.container = containerElement;
+    this.kitchenVisualization = kitchenVisualization;
+    this.currentRecipe = null;
+    this.currentStep = 0;
+    this.init();
+  }
+  
+  /**
+   * Initialize the recipe UI
+   */
+  init() {
+    this.container.innerHTML = '';
+    
+    // Recipe selection
+    this.recipeSelector = document.createElement('select');
+    this.recipeSelector.className = 'recipe-selector';
+    this.recipeSelector.addEventListener('change', () => this.loadRecipe(this.recipeSelector.value));
+    this.container.appendChild(this.recipeSelector);
+    
+    // Recipe details
+    this.recipeDetails = document.createElement('div');
+    this.recipeDetails.className = 'recipe-details';
+    this.container.appendChild(this.recipeDetails);
+    
+    // Recipe steps
+    this.recipeSteps = document.createElement('div');
+    this.recipeSteps.className = 'recipe-steps';
+    this.container.appendChild(this.recipeSteps);
+    
+    // Execution controls
+    this.executionControls = document.createElement('div');
+    this.executionControls.className = 'execution-controls';
+    
+    const resetButton = document.createElement('button');
+    resetButton.textContent = 'Reset';
+    resetButton.addEventListener('click', () => this.resetRecipe());
+    this.executionControls.appendChild(resetButton);
+    
+    const stepButton = document.createElement('button');
+    stepButton.textContent = 'Next Step';
+    stepButton.addEventListener('click', () => this.executeStep());
+    this.executionControls.appendChild(stepButton);
+    
+    const runButton = document.createElement('button');
+    runButton.textContent = 'Run All';
+    runButton.addEventListener('click', () => this.executeRecipe());
+    this.executionControls.appendChild(runButton);
+    
+    this.container.appendChild(this.executionControls);
+    
+    // Load available recipes
+    this.loadAvailableRecipes();
+  }
+  
+  /**
+   * Load available recipes from the API
+   */
+  async loadAvailableRecipes() {
+    try {
+      const response = await fetch('/api/recipes');
+      const recipes = await response.json();
+      
+      this.recipeSelector.innerHTML = '';
+      
+      const defaultOption = document.createElement('option');
+      defaultOption.value = '';
+      defaultOption.textContent = 'Select a recipe...';
+      this.recipeSelector.appendChild(defaultOption);
+      
+      for (const recipe of recipes) {
+        const option = document.createElement('option');
+        option.value = recipe.id;
+        option.textContent = recipe.name;
+        this.recipeSelector.appendChild(option);
+      }
+    } catch (error) {
+      console.error('Failed to load recipes:', error);
+    }
+  }
+  
+  /**
+   * Load a specific recipe
+   */
+  async loadRecipe(recipeId) {
+    if (!recipeId) {
+      this.currentRecipe = null;
+      this.recipeDetails.innerHTML = '';
+      this.recipeSteps.innerHTML = '';
+      return;
+    }
+    
+    try {
+      const response = await fetch(`/api/recipes/${recipeId}`);
+      const recipe = await response.json();
+      
+      this.currentRecipe = recipe;
+      this.currentStep = 0;
+      
+      this.renderRecipeDetails();
+      this.renderRecipeSteps();
+    } catch (error) {
+      console.error('Failed to load recipe:', error);
+    }
+  }
+  
+  /**
+   * Render recipe details
+   */
+  renderRecipeDetails() {
+    if (!this.currentRecipe) {
+      this.recipeDetails.innerHTML = '';
+      return;
+    }
+    
+    this.recipeDetails.innerHTML = `
+      <h2>${this.currentRecipe.name}</h2>
+      <div class="recipe-metadata">
+        <span class="category">${this.currentRecipe.category}</span>
+        <span class="difficulty">${this.currentRecipe.difficulty}</span>
+      </div>
+      <p class="description">${this.currentRecipe.description}</p>
+      <div class="ingredients">
+        <h3>Ingredients</h3>
+        <ul>
+          ${this.currentRecipe.ingredients.map(ing => 
+            `<li>${ing[1]} ${ing[2]} ${ing[0]}</li>`).join('')}
+        </ul>
+      </div>
+    `;
+  }
+  
+  /**
+   * Render recipe steps
+   */
+  renderRecipeSteps() {
+    if (!this.currentRecipe) {
+      this.recipeSteps.innerHTML = '';
+      return;
+    }
+    
+    this.recipeSteps.innerHTML = '<h3>Steps</h3><ol class="steps-list"></ol>';
+    const stepsList = this.recipeSteps.querySelector('.steps-list');
+    
+    for (let i = 0; i < this.currentRecipe.steps.length; i++) {
+      const step = this.currentRecipe.steps[i];
+      const stepElement = document.createElement('li');
+      stepElement.className = 'step';
+      if (i < this.currentStep) {
+        stepElement.classList.add('completed');
+      } else if (i === this.currentStep) {
+        stepElement.classList.add('current');
+      }
+      
+      stepElement.textContent = this.formatStep(step);
+      stepsList.appendChild(stepElement);
+    }
+  }
+  
+  /**
+   * Format a step for display
+   */
+  formatStep(step) {
+    const operation = step[0];
+    const args = step.slice(1);
+    
+    switch (operation) {
+      case 'push':
+        return `Add ${args[0]} to the stack`;
+      case 'pop':
+        return `Remove the top item from the stack`;
+      case 'swap':
+        return `Swap the top two items on the stack`;
+      case 'dup':
+        return `Duplicate the top item on the stack`;
+      case 'transform':
+        const transform = args[0];
+        const params = args[1] || {};
+        let paramStr = '';
+        
+        if (Object.keys(params).length > 0) {
+          paramStr = ` (${Object.entries(params).map(([k, v]) => `${k}: ${v}`).join(', ')})`;
+        }
+        
+        return `Apply ${transform}${paramStr} transformation`;
+      default:
+        return `${operation} ${args.join(' ')}`;
+    }
+  }
+  
+  /**
+   * Reset the recipe execution
+   */
+  resetRecipe() {
+    if (!this.currentRecipe) return;
+    
+    this.currentStep = 0;
+    this.renderRecipeSteps();
+    
+    // Clear the kitchen stack
+    while (this.kitchenVisualization.stack.length > 0) {
+      this.kitchenVisualization.pop();
+    }
+  }
+  
+  /**
+   * Execute a single step of the recipe
+   */
+  executeStep() {
+    if (!this.currentRecipe || this.currentStep >= this.currentRecipe.steps.length) {
+      return;
+    }
+    
+    const step = this.currentRecipe.steps[this.currentStep];
+    this.executeRecipeStep(step);
+    
+    this.currentStep++;
+    this.renderRecipeSteps();
+  }
+  
+  /**
+   * Execute a specific recipe step
+   */
+  executeRecipeStep(step) {
+    const operation = step[0];
+    const args = step.slice(1);
+    
+    switch (operation) {
+      case 'push':
+        this.kitchenVisualization.push(args[0]);
+        break;
+      case 'pop':
+        this.kitchenVisualization.pop();
+        break;
+      case 'swap':
+        this.kitchenVisualization.swap();
+        break;
+      case 'dup':
+        this.kitchenVisualization.dup();
+        break;
+      case 'transform':
+        // In a real implementation, this would call the transformation API
+        console.log(`Applying transformation: ${args[0]}`);
+        break;
+    }
+  }
+  
+  /**
+   * Execute the entire recipe
+   */
+  executeRecipe() {
+    this.resetRecipe();
+    
+    for (let i = 0; i < this.currentRecipe.steps.length; i++) {
+      const step = this.currentRecipe.steps[i];
+      this.executeRecipeStep(step);
+      this.currentStep++;
+    }
+    
+    this.renderRecipeSteps();
+  }
+}
+#+END_SRC
+
+* Build System
+** Makefile
+
+#+BEGIN_SRC makefile :tangle Makefile :mkdirp yes
+# Cuisine Code Makefile
+# Copyright (c) 2025 Aidan Pace
+
+.PHONY: all clean setup deps compile-scheme compile-c compile-wasm serve test doc
+
+# Directories
+SCHEME_SRC = ./scheme/src
+SCHEME_TESTS = ./scheme/tests
+C_OUTPUT = ./c-output/src
+WASM_OUTPUT = ./web/wasm
+WEB_SRC = ./web/src
+DOCS = ./docs
+
+# Tools
+GUILE = guile
+EMCC = emcc
+NODE = node
+MERMAID = mmdc
+
+# Compilation flags
+EMCC_FLAGS = -s WASM=1 -s EXPORTED_RUNTIME_METHODS=['ccall','cwrap'] -s EXPORTED_FUNCTIONS=['_run_kitchen'] -s ALLOW_MEMORY_GROWTH=1
+
+all: setup compile-scheme compile-c compile-wasm doc
+
+# Setup project structure
+setup:
+	@echo "Setting up project structure..."
+	@bash scripts/create-dirs.sh
+
+# Install dependencies
+deps:
+	@echo "Installing dependencies..."
+	@bash scripts/deps.sh
+
+# Compile Scheme to C
+compile-scheme:
+	@echo "Compiling Scheme to C..."
+	mkdir -p $(C_OUTPUT)
+	$(GUILE) ./tools/scheme-to-c.scm $(SCHEME_SRC)/core/kitchen/kitchen.scm > $(C_OUTPUT)/cuisine_code.c
+
+# Compile C to object files
+compile-c:
+	@echo "Compiling C..."
+	mkdir -p $(C_OUTPUT)/build
+	cc -c $(C_OUTPUT)/cuisine_code.c -o $(C_OUTPUT)/build/cuisine_code.o
+
+# Compile to WebAssembly
+compile-wasm:
+	@echo "Compiling to WebAssembly..."
+	mkdir -p $(WASM_OUTPUT)
+	$(EMCC) $(EMCC_FLAGS) $(C_OUTPUT)/cuisine_code.c -o $(WASM_OUTPUT)/cuisine_code.js
+
+# Start development server
+serve:
+	@echo "Starting development server..."
+	$(NODE) ./tools/dev-server.js
+
+# Run tests
+test:
+	@echo "Running tests..."
+	$(GUILE) -L . -e "(execute-test-suite)" ./scripts/run-tests.scm
+
+# Generate documentation
+doc:
+	@echo "Generating documentation..."
+	@mkdir -p $(DOCS)/diagrams
+	@for f in $(DOCS)/*.mmd; do \
+		if [ -f "$$f" ]; then \
+			$(MERMAID) -i "$$f" -o "$(DOCS)/diagrams/$$(basename "$$f" .mmd).png"; \
+		fi \
+	done
+
+# Clean build artifacts
+clean:
+	@echo "Cleaning build artifacts..."
+	rm -rf $(C_OUTPUT)/build
+	rm -f $(C_OUTPUT)/cuisine_code.c
+	rm -f $(WASM_OUTPUT)/cuisine_code.js
+	rm -f $(WASM_OUTPUT)/cuisine_code.wasm
+#+END_SRC
+
+** Scheme to C Transpiler
+
+#+BEGIN_SRC scheme :tangle tools/scheme-to-c.scm :mkdirp yes
+;;; scheme-to-c.scm -- Scheme to C transpiler for Cuisine Code
+;;; Copyright (c) 2025 Aidan Pace
+
+(use-modules (ice-9 getopt-long)
+             (ice-9 format)
+             (ice-9 pretty-print)
+             (ice-9 regex))
+
+;; This is a simplified example of a Scheme-to-C transpiler
+;; A full implementation would use a proper compilation framework
+
+(define (main args)
+  (let* ((options (getopt-long args '((output (value #t) (single-char #\o)))))
+         (output-file (option-ref options 'output #f))
+         (input-files (option-ref options '() '())))
+    
+    (when (null? input-files)
+      (format #t "Error: No input files specified~%")
+      (exit 1))
+    
+    (let ((input (car input-files)))
+      (with-output-to-port
+          (if output-file
+              (open-output-file output-file)
+              (current-output-port))
+        (lambda ()
+          (format #t "// Generated C code from Scheme source: ~a~%" input)
+          (format #t "#include <stdio.h>~%")
+          (format #t "#include <stdlib.h>~%")
+          (format #t "#include <string.h>~%~%")
+          
+          ;; Generate C code for kitchen implementation
+          (generate-kitchen-c-code input))))))
+
+;; Generate C code for kitchen implementation
+(define (generate-kitchen-c-code input-file)
+  ;; This is just a placeholder implementation
+  ;; A real transpiler would parse and compile the Scheme code
+  
+  ;; Stack implementation
+  (format #t "// Stack implementation~%")
+  (format #t "typedef struct StackNode {~%")
+  (format #t "  char* value;~%")
+  (format #t "  struct StackNode* next;~%")
+  (format #t "} StackNode;~%~%")
+  
+  (format #t "typedef struct {~%")
+  (format #t "  StackNode* top;~%")
+  (format #t "  size_t size;~%")
+  (format #t "} Stack;~%~%")
+  
+  (format #t "Stack* create_stack() {~%")
+  (format #t "  Stack* stack = (Stack*)malloc(sizeof(Stack));~%")
+  (format #t "  stack->top = NULL;~%")
+  (format #t "  stack->size = 0;~%")
+  (format #t "  return stack;~%")
+  (format #t "}~%~%")
+  
+  (format #t "void stack_push(Stack* stack, const char* value) {~%")
+  (format #t "  StackNode* node = (StackNode*)malloc(sizeof(StackNode));~%")
+  (format #t "  node->value = strdup(value);~%")
+  (format #t "  node->next = stack->top;~%")
+  (format #t "  stack->top = node;~%")
+  (format #t "  stack->size++;~%")
+  (format #t "}~%~%")
+  
+  (format #t "char* stack_pop(Stack* stack) {~%")
+  (format #t "  if (stack->top == NULL) {~%")
+  (format #t "    fprintf(stderr, \"Error: Cannot pop from empty stack\\n\");~%")
+  (format #t "    return NULL;~%")
+  (format #t "  }~%")
+  (format #t "  StackNode* node = stack->top;~%")
+  (format #t "  char* value = node->value;~%")
+  (format #t "  stack->top = node->next;~%")
+  (format #t "  free(node);~%")
+  (format #t "  stack->size--;~%")
+  (format #t "  return value;~%")
+  (format #t "}~%~%")
+  
+  ;; Kitchen implementation
+  (format #t "// Kitchen implementation~%")
+  (format #t "typedef struct {~%")
+  (format #t "  Stack* stack;~%")
+  (format #t "} Kitchen;~%~%")
+  
+  (format #t "Kitchen* create_kitchen() {~%")
+  (format #t "  Kitchen* kitchen = (Kitchen*)malloc(sizeof(Kitchen));~%")
+  (format #t "  kitchen->stack = create_stack();~%")
+  (format #t "  return kitchen;~%")
+  (format #t "}~%~%")
+  
+  ;; Transformations
+  (format #t "// Basic transformations~%")
+  (format #t "char* transform_chop(const char* ingredient) {~%")
+  (format #t "  char* result = (char*)malloc(strlen(ingredient) + 10);~%")
+  (format #t "  sprintf(result, \"chopped-%s\", ingredient);~%")
+  (format #t "  return result;~%")
+  (format #t "}~%~%")
+  
+  (format #t "char* transform_dice(const char* ingredient) {~%")
+  (format #t "  char* result = (char*)malloc(strlen(ingredient) + 10);~%")
+  (format #t "  sprintf(result, \"diced-%s\", ingredient);~%")
+  (format #t "  return result;~%")
+  (format #t "}~%~%")
+  
+  ;; WASM exports
+  (format #t "// WebAssembly export functions~%")
+  (format #t "#ifdef __EMSCRIPTEN__~%")
+  (format #t "#include <emscripten.h>~%")
+  (format #t "#define EXPORT EMSCRIPTEN_KEEPALIVE~%")
+  (format #t "#else~%")
+  (format #t "#define EXPORT~%")
+  (format #t "#endif~%~%")
+  
+  (format #t "Kitchen* global_kitchen = NULL;~%~%")
+  
+  (format #t "EXPORT int init_kitchen() {~%")
+  (format #t "  if (global_kitchen == NULL) {~%")
+  (format #t "    global_kitchen = create_kitchen();~%")
+  (format #t "  }~%")
+  (format #t "  return 1;~%")
+  (format #t "}~%~%")
+  
+  (format #t "EXPORT int push_ingredient(const char* ingredient) {~%")
+  (format #t "  if (global_kitchen == NULL) init_kitchen();~%")
+  (format #t "  stack_push(global_kitchen->stack, ingredient);~%")
+  (format #t "  return 1;~%")
+  (format #t "}~%~%")
+  
+  (format #t "EXPORT char* pop_ingredient() {~%")
+  (format #t "  if (global_kitchen == NULL) init_kitchen();~%")
+  (format #t "  return stack_pop(global_kitchen->stack);~%")
+  (format #t "}~%~%")
+  
+  (format #t "EXPORT int apply_transformation(const char* name) {~%")
+  (format #t "  if (global_kitchen == NULL) init_kitchen();~%")
+  (format #t "  char* ingredient = stack_pop(global_kitchen->stack);~%")
+  (format #t "  if (ingredient == NULL) return 0;~%~%")
+  (format #t "  char* result = NULL;~%")
+  (format #t "  if (strcmp(name, \"chop\") == 0) {~%")
+  (format #t "    result = transform_chop(ingredient);~%")
+  (format #t "  } else if (strcmp(name, \"dice\") == 0) {~%")
+  (format #t "    result = transform_dice(ingredient);~%")
+  (format #t "  } else {~%")
+  (format #t "    fprintf(stderr, \"Unknown transformation: %s\\n\", name);~%")
+  (format #t "    free(ingredient);~%")
+  (format #t "    return 0;~%")
+  (format #t "  }~%~%")
+  (format #t "  free(ingredient);~%")
+  (format #t "  stack_push(global_kitchen->stack, result);~%")
+  (format #t "  free(result);~%")
+  (format #t "  return 1;~%")
+  (format #t "}~%~%")
+  
+  ;; Main function
+  (format #t "// Main function for standalone testing~%")
+  (format #t "#ifndef __EMSCRIPTEN__~%")
+  (format #t "int main() {~%")
+  (format #t "  printf(\"Cuisine Code Kitchen Started\\n\");~%")
+  (format #t "  init_kitchen();~%")
+  (format #t "  push_ingredient(\"butter\");~%")
+  (format #t "  push_ingredient(\"herbs\");~%")
+  (format #t "  apply_transformation(\"chop\");~%")
+  (format #t "  char* result = pop_ingredient();~%")
+  (format #t "  printf(\"Result: %s\\n\", result);~%")
+  (format #t "  free(result);~%")
+  (format #t "  return 0;~%")
+  (format #t "}~%")
+  (format #t "#endif~%"))
+
+;; Run the main function
+(main (command-line))
+#+END_SRC
+
+* Testing
+** Test Framework
+
+#+BEGIN_SRC scheme :tangle scheme/tests/test-framework.scm :mkdirp yes
+;;; test-framework.scm -- Simple test framework for Cuisine Code
+;;; Copyright (c) 2025 Aidan Pace
+
+(define-module (cuisine-code tests test-framework)
+  #:export (define-test
+            define-test-suite
+            run-test
+            run-test-suite
+            assert-equal
+            assert-true
+            assert-false
+            assert-error))
+
+;; Test registry
+(define *test-registry* '())
+
+;; Define a test case
+(define-macro (define-test name . body)
+  `(begin
+     (set! *test-registry* 
+           (assoc-set! *test-registry* 
+                       ',name
+                       (lambda () ,@body)))
+     ',name))
+
+;; Define a test suite
+(define-macro (define-test-suite name . tests)
+  `(begin
+     (set! *test-registry*
+           (assoc-set! *test-registry*
+                       ',name
+                       (list ,@(map (lambda (test) `(quote ,test)) tests))))
+     ',name))
+
+;; Run a specific test
+(define (run-test name)
+  (let ((test-fn (assoc-ref *test-registry* name)))
+    (if test-fn
+        (if (procedure? test-fn)
+            (begin
+              (format #t "Running test: ~a\n" name)
+              (let ((result (with-exception-handler
+                             (lambda (exn)
+                               `(failure ,exn))
+                             (lambda ()
+                               (test-fn)
+                               'success))))
+                (format #t "Test ~a: ~a\n" 
+                        name 
+                        (if (eq? result 'success) "PASSED" "FAILED"))
+                (eq? result 'success)))
+            (error "Not a test procedure" name))
+        (error "Test not found" name))))
+
+;; Run a test suite
+(define (run-test-suite name)
+  (let ((suite (assoc-ref *test-registry* name)))
+    (if suite
+        (if (list? suite)
+            (begin
+              (format #t "Running test suite: ~a\n" name)
+              (let ((results (map run-test suite)))
+                (let ((passed (count identity results))
+                      (total (length results)))
+                  (format #t "Suite ~a: ~a/~a tests passed\n" 
+                          name passed total)
+                  (= passed total))))
+            (error "Not a test suite" name))
+        (error "Test suite not found" name))))
+
+;; Assertion helpers
+(define (assert-equal expected actual)
+  (if (equal? expected actual)
+      #t
+      (error "Assertion failed" 
+             `(expected ,expected but got ,actual))))
+
+(define (assert-true expr)
+  (if expr
+      #t
+      (error "Assertion failed" 
+             `(expected true but got ,expr))))
+
+(define (assert-false expr)
+  (if expr
+      (error "Assertion failed" 
+             `(expected false but got ,expr))
+      #t))
+
+(define (assert-error thunk)
+  (let ((result (with-exception-handler
+                 (lambda (exn) 'error-caught)
+                 thunk)))
+    (if (eq? result 'error-caught)
+        #t
+        (error "Assertion failed" 
+               `(expected an error but none was raised)))))
+#+END_SRC
+

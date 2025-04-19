@@ -1,0 +1,17 @@
+graph TD
+    A[Scheme Source] --> B[Parsing]
+    B --> C[AST Generation]
+    C --> D[Optimization]
+    D --> E[Intermediate Representation]
+    
+    E --> F[C Code Generation]
+    E --> G[JavaScript Generation]
+    E --> H[WASM Generation]
+    
+    F --> I[Native Compilation]
+    G --> J[Browser Integration]
+    H --> K[WASM Module]
+    
+    I --> L[Native Applications]
+    J --> M[Web Applications]
+    K --> N[Browser Runtime]

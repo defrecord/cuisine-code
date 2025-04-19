@@ -1,0 +1,20 @@
+graph TD
+    A[Transformation Engine] --> B[Transformation Registry]
+    A --> C[Transformation Execution]
+    A --> D[Result Calculation]
+    
+    B --> E[Mechanical Transformations]
+    B --> F[Thermal Transformations]
+    B --> G[Chemical Transformations]
+    
+    E --> H[Chop]
+    E --> I[Dice]
+    E --> J[Mince]
+    
+    F --> K[Bake]
+    F --> L[Sauté]
+    F --> M[Boil]
+    
+    G --> N[Reduce]
+    G --> O[Emulsify]
+    G --> P[Ferment]

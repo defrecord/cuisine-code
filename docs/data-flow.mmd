@@ -1,0 +1,11 @@
+graph LR
+    A[User Input] --> B[Command Parser]
+    B --> C[Kitchen Engine]
+    C --> D[Stack]
+    C --> E[Transformation Engine]
+    E --> F[Ingredient System]
+    E --> D
+    D --> G[State Update]
+    G --> H[Event System]
+    H --> I[UI Update]
+    I --> J[User Feedback]

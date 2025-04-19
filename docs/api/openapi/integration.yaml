@@ -1,0 +1,209 @@
+openapi: 3.1.0
+info:
+  title: Cuisine Code Integration API
+  version: 1.0.0
+  description: APIs for external system integration
+paths:
+  /api/integration/import:
+    post:
+      summary: Import data
+      description: Import data from external sources
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              required:
+                - type
+                - data
+              properties:
+                type:
+                  type: string
+                  enum: [recipe, ingredient, kitchen]
+                  description: Type of data to import
+                format:
+                  type: string
+                  enum: [json, yaml, xml]
+                  description: Format of the data
+                data:
+                  type: string
+                  description: Data to import
+      responses:
+        '200':
+          description: Data imported
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  id:
+                    type: string
+                    description: ID of the imported item
+                  type:
+                    type: string
+                    description: Type of the imported item
+  /api/integration/export/{type}/{id}:
+    get:
+      summary: Export data
+      description: Export data to various formats
+      parameters:
+        - name: type
+          in: path
+          required: true
+          schema:
+            type: string
+            enum: [recipe, kitchen, user]
+          description: Type of data to export
+        - name: id
+          in: path
+          required: true
+          schema:
+            type: string
+          description: ID of the item to export
+        - name: format
+          in: query
+          required: false
+          schema:
+            type: string
+            enum: [json, yaml, xml, pdf]
+            default: json
+          description: Export format
+      responses:
+        '200':
+          description: Data exported
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  data:
+                    type: string
+                    description: Exported data
+  /api/integration/webhooks:
+    get:
+      summary: List webhooks
+      description: Get a list of configured webhooks
+      responses:
+        '200':
+          description: Successful operation
+          content:
+            application/json:
+              schema:
+                type: array
+                items:
+                  $ref: '#/components/schemas/Webhook'
+    post:
+      summary: Create webhook
+      description: Create a new webhook
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/WebhookDefinition'
+      responses:
+        '201':
+          description: Webhook created
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Webhook'
+  /api/integration/webhooks/{id}:
+    get:
+      summary: Get webhook
+      description: Get a specific webhook
+      parameters:
+        - name: id
+          in: path
+          required: true
+          schema:
+            type: string
+      responses:
+        '200':
+          description: Successful operation
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Webhook'
+    put:
+      summary: Update webhook
+      description: Update an existing webhook
+      parameters:
+        - name: id
+          in: path
+          required: true
+          schema:
+            type: string
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/WebhookDefinition'
+      responses:
+        '200':
+          description: Webhook updated
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Webhook'
+    delete:
+      summary: Delete webhook
+      description: Delete a webhook
+      parameters:
+        - name: id
+          in: path
+          required: true
+          schema:
+            type: string
+      responses:
+        '204':
+          description: Webhook deleted
+components:
+  schemas:
+    WebhookDefinition:
+      type: object
+      required:
+        - name
+        - url
+        - events
+      properties:
+        name:
+          type: string
+          description: Webhook name
+        url:
+          type: string
+          format: uri
+          description: Webhook URL
+        events:
+          type: array
+          items:
+            type: string
+          description: Events to trigger the webhook
+        secret:
+          type: string
+          description: Webhook secret for signature verification
+        active:
+          type: boolean
+          default: true
+          description: Whether the webhook is active
+    Webhook:
+      allOf:
+        - $ref: '#/components/schemas/WebhookDefinition'
+        - type: object
+          properties:
+            id:
+              type: string
+              description: Webhook ID
+            created_at:
+              type: string
+              format: date-time
+              description: Creation timestamp
+            last_triggered:
+              type: string
+              format: date-time
+              description: Last trigger timestamp
+            trigger_count:
+              type: integer
+              description: Number of times the webhook has been triggered

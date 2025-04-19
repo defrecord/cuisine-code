@@ -2,6 +2,11 @@
 
 This file provides guidance to Claude Code (claude.ai/code) when working with code in this repository.
 
+** Authors & Contributors
+- Author: Aidan Pace <apace@defrecord.com>
+- Co-author: Claude <claude@anthropic.com>
+- Reviewer/Sign-off: Jason Walsh <jwalsh@defrecord.com>
+
 ** Build & Test Commands
 - Python: ~pytest tests/~ (all tests)
 - Single Python test: ~pytest tests/path/to/test.py::test_function_name -v~

@@ -1,0 +1,74 @@
+openapi: 3.1.0
+info:
+  title: Cuisine Code Kitchen Stack API
+  version: 1.0.0
+  description: Stack operation APIs for the Cuisine Code kitchen environment
+paths:
+  /api/kitchen/stack:
+    get:
+      summary: Get stack contents
+      description: Returns the current state of the kitchen stack
+      responses:
+        '200':
+          description: Successful operation
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  stack:
+                    type: array
+                    items:
+                      $ref: '#/components/schemas/StackItem'
+    post:
+      summary: Perform stack operation
+      description: Execute a stack operation (push, pop, swap, etc.)
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              required:
+                - operation
+              properties:
+                operation:
+                  type: string
+                  enum: [push, pop, swap, rot, dup, over]
+                  description: Stack operation to perform
+                item:
+                  type: object
+                  description: Item to push (required for push operation)
+      responses:
+        '200':
+          description: Successful operation
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  result:
+                    type: string
+                    description: Result of the operation
+                  stack:
+                    type: array
+                    items:
+                      $ref: '#/components/schemas/StackItem'
+components:
+  schemas:
+    StackItem:
+      type: object
+      properties:
+        id:
+          type: string
+          description: Unique identifier for the stack item
+        type:
+          type: string
+          enum: [ingredient, tool, container, mixture, preparation]
+          description: Type of the stack item
+        name:
+          type: string
+          description: Display name of the item
+        properties:
+          type: object
+          description: Additional properties of the item

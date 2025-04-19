@@ -1,0 +1,208 @@
+openapi: 3.1.0
+info:
+  title: Cuisine Code Recipe Sharing API
+  version: 1.0.0
+  description: APIs for recipe sharing and collaboration
+paths:
+  /api/social/shared-recipes:
+    get:
+      summary: Get shared recipes
+      description: Get a list of recipes shared with the current user
+      responses:
+        '200':
+          description: Successful operation
+          content:
+            application/json:
+              schema:
+                type: array
+                items:
+                  $ref: '#/components/schemas/SharedRecipe'
+  /api/social/share:
+    post:
+      summary: Share recipe
+      description: Share a recipe with other users
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              required:
+                - recipe_id
+                - user_ids
+              properties:
+                recipe_id:
+                  type: string
+                  description: ID of the recipe to share
+                user_ids:
+                  type: array
+                  items:
+                    type: string
+                  description: IDs of users to share with
+                message:
+                  type: string
+                  description: Optional message
+      responses:
+        '200':
+          description: Recipe shared
+  /api/social/friends:
+    get:
+      summary: Get friends
+      description: Get the current user's friends
+      responses:
+        '200':
+          description: Successful operation
+          content:
+            application/json:
+              schema:
+                type: array
+                items:
+                  $ref: '#/components/schemas/FriendSummary'
+    post:
+      summary: Add friend
+      description: Send a friend request
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              required:
+                - user_id
+              properties:
+                user_id:
+                  type: string
+                  description: ID of the user to add as a friend
+                message:
+                  type: string
+                  description: Optional message
+      responses:
+        '200':
+          description: Friend request sent
+  /api/social/friends/{id}:
+    delete:
+      summary: Remove friend
+      description: Remove a friend
+      parameters:
+        - name: id
+          in: path
+          required: true
+          schema:
+            type: string
+      responses:
+        '204':
+          description: Friend removed
+  /api/social/friend-requests:
+    get:
+      summary: Get friend requests
+      description: Get pending friend requests
+      responses:
+        '200':
+          description: Successful operation
+          content:
+            application/json:
+              schema:
+                type: array
+                items:
+                  $ref: '#/components/schemas/FriendRequest'
+    put:
+      summary: Respond to request
+      description: Accept or decline a friend request
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              required:
+                - request_id
+                - action
+              properties:
+                request_id:
+                  type: string
+                  description: ID of the friend request
+                action:
+                  type: string
+                  enum: [accept, decline]
+                  description: Action to take
+      responses:
+        '200':
+          description: Request processed
+components:
+  schemas:
+    SharedRecipe:
+      type: object
+      properties:
+        id:
+          type: string
+          description: Shared recipe ID
+        recipe:
+          $ref: '#/components/schemas/RecipeSummary'
+        shared_by:
+          $ref: '#/components/schemas/UserPublicProfile'
+        shared_at:
+          type: string
+          format: date-time
+          description: Sharing timestamp
+        message:
+          type: string
+          description: Sharing message
+    FriendSummary:
+      type: object
+      properties:
+        id:
+          type: string
+          description: User ID
+        username:
+          type: string
+          description: Username
+        display_name:
+          type: string
+          description: Display name
+        status:
+          type: string
+          enum: [online, offline, cooking]
+          description: User status
+    FriendRequest:
+      type: object
+      properties:
+        id:
+          type: string
+          description: Request ID
+        from:
+          $ref: '#/components/schemas/UserPublicProfile'
+        sent_at:
+          type: string
+          format: date-time
+          description: Request timestamp
+        message:
+          type: string
+          description: Request message
+    RecipeSummary:
+      type: object
+      properties:
+        id:
+          type: string
+          description: Recipe ID
+        name:
+          type: string
+          description: Recipe name
+        category:
+          type: string
+          description: Recipe category
+        difficulty:
+          type: string
+          enum: [beginner, intermediate, advanced, expert]
+          description: Difficulty level
+    UserPublicProfile:
+      type: object
+      properties:
+        id:
+          type: string
+          description: User ID
+        username:
+          type: string
+          description: Username
+        display_name:
+          type: string
+          description: Display name
