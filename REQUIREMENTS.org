@@ -1,0 +1,383 @@
+#+TITLE: Cuisine Code: Requirements Document
+#+AUTHOR: Aidan Pace
+#+EMAIL: apace@defrecord.com
+#+DATE: 2025-04-19
+
+* Project Overview
+
+Cuisine Code is an educational game that teaches stack-based computing through French culinary metaphors. The project will be developed in Scheme and transpiled to various target platforms including C, WASM, and JavaScript. The application will feature a social component with user profiles, personalized kitchen environments, and recipe sharing.
+
+* Core Requirements
+** Programming Language
+
+- All code must be written in Scheme
+- The codebase must be modular and transpilable to multiple target languages
+
+** Game Mechanics
+
+- Implement stack-based operations through culinary metaphors
+- Support French culinary techniques and ingredients
+- Provide ASCII/Unicode visualizations of cooking processes
+- Include progression from simple to complex recipes
+- Implement recipe pattern recognition
+- Support mise-en-place macros for code reuse
+
+#+BEGIN_SRC scheme :tangle docs/game-mechanics.mmd :mkdirp yes
+graph TD
+    A[Stack Operations] --> B[Push/Pop]
+    A --> C[Swap/Rotate]
+    A --> D[Duplicate]
+    E[Cooking Techniques] --> F[Chopping]
+    E --> G[Mixing]
+    E --> H[Heating]
+    I[Recipe System] --> J[Ingredients]
+    I --> K[Transformations]
+    I --> L[Output]
+#+END_SRC
+
+** User Interface
+
+- Terminal-based UI for local development and testing
+- Web-based UI with responsive design
+- Visual representation of stack operations
+- Support for kitchen customization
+- REPL interface for direct interaction
+
+#+BEGIN_SRC scheme :tangle docs/ui-components.mmd :mkdirp yes
+graph TD
+    A[User Interface] --> B[Terminal UI]
+    A --> C[Web UI]
+    B --> D[ASCII Visualization]
+    C --> E[Interactive Stack]
+    C --> F[Kitchen View]
+    A --> G[REPL Interface]
+    G --> H[Command Parsing]
+    G --> I[Result Display]
+#+END_SRC
+
+** Social Features (v4.0)
+
+- User profiles with customizable kitchens
+- Social login via GitHub and Google
+- Recipe sharing between users
+- Collaborative cooking sessions
+- Location-based kitchen variations (e.g. Boston kitchen)
+
+#+BEGIN_SRC scheme :tangle docs/social-features.mmd :mkdirp yes
+graph TD
+    A[Social System] --> B[User Profiles]
+    A --> C[Authentication]
+    A --> D[Recipe Sharing]
+    A --> E[Collaboration]
+    B --> F[Kitchen Customization]
+    C --> G[GitHub OAuth]
+    C --> H[Google OAuth]
+    D --> I[Friend Network]
+    E --> J[Realtime Cooking]
+#+END_SRC
+
+* Technical Infrastructure
+** Transpilation Pipeline
+
+- Scheme to C transpilation system
+- Scheme to JavaScript transpilation system
+- C to WebAssembly compilation
+- Source maps for debugging across languages
+- Module bundling for web deployment
+
+#+BEGIN_SRC scheme :tangle docs/pipeline.mmd :mkdirp yes
+graph TD
+    A[Scheme Source Code] --> B[Abstract Syntax Tree Generation]
+    B --> C[Intermediate Representation]
+    C --> D[C Target]
+    C --> E[JavaScript Target]
+    C --> F[WASM Target]
+    D --> G[C Optimizations]
+    E --> H[JS Optimizations]
+    F --> I[WASM Optimizations]
+    G --> J[C Output]
+    H --> K[JS Output]
+    I --> L[WASM Output]
+    J --> M[Bundled Application]
+    K --> M
+    L --> M
+#+END_SRC
+
+** Build System
+
+- Automated build pipeline
+- Continuous integration and testing
+- Cross-platform compatibility validation
+- Version tagging and release management
+- Documentation generation from source code
+
+#+BEGIN_SRC scheme :tangle docs/build-system.mmd :mkdirp yes
+graph TD
+    A[Source Code] --> B[Build System]
+    B --> C[Test Execution]
+    B --> D[Transpilation]
+    B --> E[Documentation Generation]
+    C --> F[Test Reports]
+    D --> G[Build Artifacts]
+    B --> H[Release Management]
+    H --> I[Version Tagging]
+    H --> J[Release Notes]
+#+END_SRC
+
+** Server Infrastructure
+
+- API server implemented in Scheme
+- Database integration for user data
+- OAuth implementation for social logins
+- WebSocket support for real-time collaboration
+- Content delivery network for static assets
+
+#+BEGIN_SRC scheme :tangle docs/server-architecture.mmd :mkdirp yes
+graph TD
+    A[Client Browser] <--> B[Static Asset CDN]
+    A <--> C[API Server]
+    C <--> D[Database]
+    C <--> E[OAuth Providers]
+    C <--> F[WebSocket Server]
+    
+    subgraph "User Authentication"
+    E --> G[GitHub]
+    E --> H[Google]
+    end
+    
+    subgraph "Data Storage"
+    D --> I[User Profiles]
+    D --> J[Kitchen Layouts]
+    D --> K[Recipe Storage]
+    D --> L[Social Connections]
+    end
+    
+    subgraph "Real-time Features"
+    F --> M[Collaborative Cooking]
+    F --> N[Chat System]
+    F --> O[Live Updates]
+    end
+#+END_SRC
+
+* Component Interactions
+** Core Engine Components
+
+#+BEGIN_SRC scheme :tangle docs/core-components.mmd :mkdirp yes
+graph TD
+    A[Kitchen Core] <--> B[Ingredient System]
+    A <--> C[Transformation Engine]
+    B <--> C
+    A <--> D[Recipe System]
+    D <--> E[Culinary Pattern Library]
+    C <--> E
+    D <--> F[Scoring System]
+    C <--> F
+    A <--> G[User Interface]
+    G <--> H[Game Progression]
+    F <--> H
+#+END_SRC
+
+** Social System Components
+
+#+BEGIN_SRC scheme :tangle docs/social-components.mmd :mkdirp yes
+graph TD
+    A[User Authentication] <--> B[Profile Management]
+    B <--> C[Kitchen Customization]
+    A <--> D[OAuth Providers]
+    B <--> E[Friend Connections]
+    C <--> F[Recipe Sharing System]
+    D <--> G[Security Layer]
+    E <--> H[Notification System]
+    F <--> I[Collaborative Editor]
+    G <--> H
+    H <--> I
+#+END_SRC
+
+* Development Environment
+** Required Tools
+
+- Guile Scheme 3.x
+- Emscripten for WebAssembly compilation
+- Node.js for web development
+- FreeBSD-compatible build tools
+- Git for version control
+- CI/CD pipeline tools
+
+** Development Workflow
+
+- Feature branch workflow
+- Test-driven development approach
+- Code review requirements
+- Documentation requirements
+- Performance benchmarking
+
+#+BEGIN_SRC scheme :tangle docs/workflow.mmd :mkdirp yes
+graph TD
+    A[Feature Request] --> B[Branch Creation]
+    B --> C[Development]
+    C --> D[Unit Testing]
+    D --> E[Code Review]
+    E --> F[Integration Testing]
+    F --> G[Merge to Main]
+    G --> H[Deployment]
+#+END_SRC
+
+* Testing Strategy
+** Unit Testing
+
+- Test coverage requirements (>90%)
+- Unit tests for all core functions
+- Mock system for external dependencies
+- Automated test execution in CI pipeline
+
+** Integration Testing
+
+- Component interaction testing
+- API endpoint validation
+- Cross-component workflow validation
+- Performance testing
+
+** User Interface Testing
+
+- UI component testing
+- User journey validation
+- Accessibility compliance
+- Cross-browser compatibility
+
+#+BEGIN_SRC scheme :tangle docs/testing-pyramid.mmd :mkdirp yes
+graph TD
+    A[Testing Strategy] --> B[Unit Tests]
+    A --> C[Integration Tests]
+    A --> D[UI Tests]
+    A --> E[Performance Tests]
+    B --> F[Component Tests]
+    C --> G[API Tests]
+    C --> H[Workflow Tests]
+    D --> I[Journey Tests]
+    D --> J[Accessibility Tests]
+#+END_SRC
+
+* Deployment Architecture
+** Web Deployment
+
+- Static file serving
+- API server deployment
+- Database deployment
+- CDN configuration
+- HTTPS configuration
+
+#+BEGIN_SRC scheme :tangle docs/deployment.mmd :mkdirp yes
+graph TD
+    A[Developer] --> B[Git Repository]
+    B --> C[CI/CD Pipeline]
+    C --> D[Test Execution]
+    D --> E[Build Process]
+    E --> F[Static Assets Generation]
+    E --> G[API Server Compilation]
+    F --> H[CDN Deployment]
+    G --> I[API Server Deployment]
+    I --> J[Database Connection]
+    H --> K[End User Browser]
+    I --> K
+#+END_SRC
+
+** Native Application Deployment
+
+- Package generation for FreeBSD
+- Terminal application distribution
+- Dependency management
+- Update mechanism
+
+* Monitoring and Operations
+** System Monitoring
+
+- Application performance monitoring
+- Error tracking and reporting
+- User analytics implementation
+- System health dashboards
+- Alerting system
+
+#+BEGIN_SRC scheme :tangle docs/monitoring.mmd :mkdirp yes
+graph TD
+    A[Production System] --> B[Performance Metrics]
+    A --> C[Error Tracking]
+    A --> D[User Analytics]
+    B --> E[Monitoring Dashboard]
+    C --> E
+    D --> E
+    E --> F[Alert System]
+    F --> G[On-Call Engineer]
+    G --> H[Runbook Execution]
+    H --> I[Incident Resolution]
+#+END_SRC
+
+** Runbooks
+
+- Deployment procedures
+- Rollback procedures
+- Database backup and recovery
+- Incident response procedures
+- System scaling procedures
+
+** Security Monitoring
+
+- Authentication audit logging
+- API access monitoring
+- Vulnerability scanning
+- Penetration testing schedule
+- Security incident response plan
+
+#+BEGIN_SRC scheme :tangle docs/security.mmd :mkdirp yes
+graph TD
+    A[Security System] --> B[Authentication Logging]
+    A --> C[API Monitoring]
+    A --> D[Vulnerability Scanning]
+    A --> E[Penetration Testing]
+    B --> F[Security Dashboard]
+    C --> F
+    D --> F
+    E --> F
+    F --> G[Security Alerts]
+    G --> H[Incident Response Team]
+#+END_SRC
+
+* Documentation
+** Code Documentation
+
+- Function documentation standards
+- Module interface documentation
+- Architecture documentation
+- API documentation
+
+** User Documentation
+
+- Game mechanics tutorials
+- Culinary technique references
+- Programming concept explanations
+- User interface guides
+
+** Operations Documentation
+
+- Installation procedures
+- Configuration guides
+- Troubleshooting guides
+- Performance tuning documentation
+
+* Future Requirements (v5.0+)
+
+- Mobile application support
+- VR/AR kitchen visualization
+- AI recipe generation
+- Real-world cooking integration
+- Professional chef collaboration
+- Educational institution integration
+
+#+BEGIN_SRC scheme :tangle docs/future-roadmap.mmd :mkdirp yes
+graph TD
+    A[Future Roadmap] --> B[Mobile Support]
+    A --> C[VR/AR Visualization]
+    A --> D[AI Integration]
+    A --> E[Real-world Cooking]
+    A --> F[Chef Collaboration]
+    A --> G[Educational Partners]
+#+END_SRC

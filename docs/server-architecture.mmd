@@ -1,0 +1,24 @@
+graph TD
+    A[Client Browser] <--> B[Static Asset CDN]
+    A <--> C[API Server]
+    C <--> D[Database]
+    C <--> E[OAuth Providers]
+    C <--> F[WebSocket Server]
+    
+    subgraph "User Authentication"
+    E --> G[GitHub]
+    E --> H[Google]
+    end
+    
+    subgraph "Data Storage"
+    D --> I[User Profiles]
+    D --> J[Kitchen Layouts]
+    D --> K[Recipe Storage]
+    D --> L[Social Connections]
+    end
+    
+    subgraph "Real-time Features"
+    F --> M[Collaborative Cooking]
+    F --> N[Chat System]
+    F --> O[Live Updates]
+    end

@@ -1,0 +1,71 @@
+# Build outputs
+build/
+dist/
+target/
+*.o
+*.so
+*.a
+*.wasm
+*.js.map
+*.wasm.map
+bin/
+
+# Scheme/Guile specific
+*.go
+*.scm~
+*.ss~
+
+# Emscripten output
+*.js.mem
+*.data
+*.html.mem
+
+# Node.js
+node_modules/
+npm-debug.log
+yarn-error.log
+package-lock.json
+yarn.lock
+
+# Editor files
+.vscode/
+.idea/
+*.swp
+*~
+\#*\#
+.\#*
+TAGS
+.dir-locals.el
+
+# Testing
+coverage/
+.nyc_output/
+test-results/
+
+# OS specific
+.DS_Store
+Thumbs.db
+
+# Project specific
+# Generated docs from org-mode tangle
+docs/api/generated/
+
+# Marketing and media files
+marketing/drafts/
+marketing/raw-assets/
+*.psd
+*.ai
+*.sketch
+*.xcf
+*.afdesign
+*.afphoto
+gameplay-recordings/raw/
+screenshots/raw/
+
+# Environment
+.env
+.env.local
+.env.*
+
+# CLAUDE.md - Read-only file, do not modify
+# CLAUDE.md

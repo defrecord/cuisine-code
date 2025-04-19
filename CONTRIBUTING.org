@@ -1,0 +1,231 @@
+#+TITLE: Contributing to Cuisine Code
+#+AUTHOR: Aidan Pace
+#+EMAIL: apace@defrecord.com
+#+DATE: 2025-04-19
+
+* Contributing Guidelines
+
+Thank you for your interest in contributing to Cuisine Code! This document provides guidelines and instructions for contributing to the project.
+
+** Code of Conduct
+
+All contributors are expected to adhere to our Code of Conduct. By participating, you are expected to uphold this code. Please report unacceptable behavior to apace@defrecord.com.
+
+** Project Structure
+
+#+BEGIN_SRC scheme :tangle docs/project-structure.mmd :mkdirp yes
+graph TD
+    A[Project Root] --> B[scheme/]
+    A --> C[web/]
+    A --> D[c-output/]
+    A --> E[docs/]
+    A --> F[tools/]
+    
+    B --> G[src/]
+    B --> H[tests/]
+    
+    G --> I[core/]
+    G --> J[game/]
+    G --> K[ui/]
+    G --> L[social/]
+    
+    C --> M[src/]
+    C --> N[wasm/]
+    
+    F --> O[scheme-to-c.scm]
+    F --> P[c-to-wasm.sh]
+#+END_SRC
+
+** Development Environment Setup
+
+See [[file:SETUP.org][SETUP.org]] for detailed setup instructions. The basic steps are:
+
+1. Install required dependencies:
+   - Guile Scheme 3.x
+   - Emscripten
+   - Node.js
+   - FreeBSD-compatible build tools
+
+2. Clone the repository:
+   #+BEGIN_SRC bash
+   git clone https://github.com/defrecord/cuisine-code.git
+   cd cuisine-code
+   #+END_SRC
+
+3. Install project dependencies:
+   #+BEGIN_SRC bash
+   make deps
+   #+END_SRC
+
+4. Build the project:
+   #+BEGIN_SRC bash
+   make all
+   #+END_SRC
+
+** Contribution Workflow
+
+1. *Fork the repository*: Create your own fork of the project.
+
+2. *Create a feature branch*: 
+   #+BEGIN_SRC bash
+   git checkout -b feature/your-feature-name
+   #+END_SRC
+
+3. *Make your changes*: Implement your feature or fix.
+
+4. *Follow the coding standards*:
+   - All code must be in Scheme
+   - Follow the project's style guide
+   - Add appropriate documentation
+   - Include tests for new functionality
+
+5. *Run tests*:
+   #+BEGIN_SRC bash
+   make test
+   #+END_SRC
+
+6. *Commit your changes*:
+   #+BEGIN_SRC bash
+   git commit -m "feat: Add your feature description"
+   #+END_SRC
+
+7. *Push to your fork*:
+   #+BEGIN_SRC bash
+   git push origin feature/your-feature-name
+   #+END_SRC
+
+8. *Submit a Pull Request*: Create a pull request from your fork to the main repository.
+
+** Commit Message Guidelines
+
+We follow conventional commits for commit messages. The basic format is:
+
+#+BEGIN_SRC
+<type>[optional scope]: <description>
+
+[optional body]
+
+[optional footer(s)]
+#+END_SRC
+
+Types include:
+- feat: A new feature
+- fix: A bug fix
+- docs: Documentation only changes
+- style: Changes that do not affect the meaning of the code
+- refactor: A code change that neither fixes a bug nor adds a feature
+- perf: A code change that improves performance
+- test: Adding missing tests or correcting existing tests
+- chore: Changes to the build process or auxiliary tools
+
+** Pull Request Process
+
+1. Update the documentation with details of changes, including new features, API changes, etc.
+2. Update the version numbers in any examples files and the README to the new version
+3. Ensure all tests pass
+4. The PR may be merged once it receives approval from at least two maintainers
+
+** Coding Standards
+
+*** General Guidelines
+
+- Write code in Scheme
+- Aim for readability and maintainability
+- Follow functional programming principles
+- Add appropriate documentation
+- Implement proper error handling
+
+*** Style Guide
+
+- Use 2-space indentation
+- Prefer kebab-case for function and variable names
+- Include docstrings for all public functions
+- Group related functions together
+- Use meaningful names that reflect purpose
+
+#+BEGIN_SRC scheme
+;; Good example
+(define (transform-ingredient ingredient transformation)
+  "Apply a transformation to an ingredient."
+  (cond
+    ((eq? transformation 'chop)
+     (string-append "chopped " ingredient))
+    ((eq? transformation 'dice)
+     (string-append "diced " ingredient))
+    (else
+     (error "Unknown transformation" transformation))))
+#+END_SRC
+
+*** Documentation Standards
+
+- Include docstrings for all public functions
+- Document parameters and return values
+- Explain non-obvious behaviors
+- Include examples for complex functions
+- Keep documentation up-to-date with code changes
+
+** Testing Guidelines
+
+*** Unit Testing
+
+- Write tests for all new functions
+- Focus on testing individual units of functionality
+- Test edge cases and error conditions
+- Aim for high test coverage
+
+*** Integration Testing
+
+- Test interactions between components
+- Ensure system works as a whole
+- Test realistic user workflows
+
+*** Writing Test Cases
+
+#+BEGIN_SRC scheme
+;; Example test case
+(define-test-case "transform-ingredient-test"
+  (assert-equal "chopped carrot" 
+                (transform-ingredient "carrot" 'chop))
+  (assert-equal "diced onion" 
+                (transform-ingredient "onion" 'dice))
+  (assert-error (transform-ingredient "garlic" 'unknown-transformation)))
+#+END_SRC
+
+** Documentation Contributions
+
+Documentation is as important as code. Ways to contribute to documentation:
+
+- Improve existing documentation
+- Add examples and tutorials
+- Create diagrams and visual aids
+- Fix typos and clarify explanations
+- Translate documentation
+
+** Feature Requests and Bug Reports
+
+- Use the issue tracker to submit feature requests and bug reports
+- Provide detailed descriptions
+- Include steps to reproduce bugs
+- Suggest implementation approaches for features
+- Label issues appropriately
+
+** Review Process
+
+All contributions will be reviewed by project maintainers. The review process includes:
+
+1. Code review for quality and style
+2. Test verification
+3. Documentation review
+4. Integration testing
+5. Performance consideration
+
+** Recognition
+
+All contributors will be recognized in the project's CONTRIBUTORS.md file. Significant contributions may lead to maintainer status.
+
+** Resources for Contributors
+
+- [[file:REQUIREMENTS.org][REQUIREMENTS.org]]: Project requirements and architecture
+- [[file:ARCHITECTURE.org][ARCHITECTURE.org]]: System design information
+- [[file:docs/api/][API Documentation]]: Reference for internal APIs
+- [[https://github.com/defrecord/cuisine-code/wiki][Project Wiki]]: Additional guidance and tutorials

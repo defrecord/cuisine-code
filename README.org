@@ -1,0 +1,65 @@
+#+TITLE: Cuisine Code
+#+AUTHOR: Aidan Pace
+#+EMAIL: apace@defrecord.com
+#+DATE: 2025-04-19
+
+* Cuisine Code: Learn Stack-Based Computing Through French Cooking
+
+[[file:docs/logo.png]]
+
+Cuisine Code is an educational game that teaches stack-based computing concepts through French culinary metaphors. By interacting with a virtual kitchen, players learn fundamental programming concepts in an engaging and intuitive way.
+
+** Overview
+
+In Cuisine Code, cooking procedures are modeled as stack operations:
+- Ingredients are pushed onto the stack
+- Cooking transformations pop ingredients, process them, and push results back
+- Recipes combine multiple operations to create complex dishes
+- Players learn computational thinking through familiar culinary concepts
+
+The game is implemented in Scheme and transpiled to multiple target platforms, including C, WebAssembly, and JavaScript for broad accessibility.
+
+** Key Features
+
+- *Stack-Based Operations*: Learn fundamental computing concepts through cooking
+- *French Culinary Focus*: Master authentic techniques from mirepoix to mother sauces
+- *Visual Feedback*: See your stack operations through beautiful culinary visualizations
+- *Progressive Learning*: Advance from simple preparations to complex recipes
+- *Social Cooking*: Share recipes and cook collaboratively (v4.0)
+- *Cross-Platform*: Play in your terminal or browser
+
+** Getting Started
+
+See [[file:SETUP.org][SETUP.org]] for detailed installation instructions.
+
+Basic usage:
+
+#+BEGIN_SRC bash
+# Clone the repository
+git clone https://github.com/defrecord/cuisine-code.git
+cd cuisine-code
+
+# Install dependencies
+make deps
+
+# Build the project
+make all
+
+# Run the game
+make run
+#+END_SRC
+
+** Documentation
+
+- [[file:REQUIREMENTS.org][REQUIREMENTS.org]]: Detailed project requirements and architecture
+- [[file:ARCHITECTURE.org][ARCHITECTURE.org]]: System design and component interactions
+- [[file:SECURITY.org][SECURITY.org]]: Security considerations and policies
+- [[file:CONTRIBUTING.org][CONTRIBUTING.org]]: Guidelines for contributors
+
+** License
+
+MIT License - See [[file:LICENSE][LICENSE]] for details.
+
+** Project Status
+
+Cuisine Code is currently in development. See the [[file:ROADMAP.org][ROADMAP]] for planned features and milestones.

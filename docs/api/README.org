@@ -1,0 +1,1350 @@
+#+TITLE: Cuisine Code API Documentation
+#+AUTHOR: Aidan Pace
+#+EMAIL: apace@defrecord.com
+#+DATE: 2025-04-19
+
+* API Documentation
+
+This document describes the internal and external APIs of the Cuisine Code system. The API specifications can be tangled to generate OpenAPI documentation.
+
+** Core API Overview
+
+The Cuisine Code system exposes several APIs:
+- Kitchen API - Core stack operations and transformations
+- Recipe API - Recipe definition, execution, and management
+- Social API - User profiles, sharing, and collaboration
+- Integration API - External system integration
+
+#+BEGIN_SRC scheme :tangle docs/api-overview.mmd :mkdirp yes
+graph TD
+    A[Cuisine Code API] --> B[Kitchen API]
+    A --> C[Recipe API]
+    A --> D[Social API]
+    A --> E[Integration API]
+    
+    B --> F[Stack Operations]
+    B --> G[Ingredient Management]
+    B --> H[Transformations]
+    
+    C --> I[Recipe Definitions]
+    C --> J[Recipe Execution]
+    C --> K[Recipe Library]
+    
+    D --> L[User Profiles]
+    D --> M[Recipe Sharing]
+    D --> N[Collaboration]
+    
+    E --> O[External Systems]
+    E --> P[Import/Export]
+    E --> Q[Webhooks]
+#+END_SRC
+
+** API Documentation Format
+
+The API documentation is provided in both human-readable format and machine-readable OpenAPI specifications.
+
+** Kitchen API
+*** Stack Operations
+**** Description
+Core stack manipulation operations for the kitchen environment.
+
+**** Endpoints
+
+#+BEGIN_SRC yaml :tangle docs/api/openapi/kitchen-stack.yaml :mkdirp yes
+openapi: 3.1.0
+info:
+  title: Cuisine Code Kitchen Stack API
+  version: 1.0.0
+  description: Stack operation APIs for the Cuisine Code kitchen environment
+paths:
+  /api/kitchen/stack:
+    get:
+      summary: Get stack contents
+      description: Returns the current state of the kitchen stack
+      responses:
+        '200':
+          description: Successful operation
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  stack:
+                    type: array
+                    items:
+                      $ref: '#/components/schemas/StackItem'
+    post:
+      summary: Perform stack operation
+      description: Execute a stack operation (push, pop, swap, etc.)
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              required:
+                - operation
+              properties:
+                operation:
+                  type: string
+                  enum: [push, pop, swap, rot, dup, over]
+                  description: Stack operation to perform
+                item:
+                  type: object
+                  description: Item to push (required for push operation)
+      responses:
+        '200':
+          description: Successful operation
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  result:
+                    type: string
+                    description: Result of the operation
+                  stack:
+                    type: array
+                    items:
+                      $ref: '#/components/schemas/StackItem'
+components:
+  schemas:
+    StackItem:
+      type: object
+      properties:
+        id:
+          type: string
+          description: Unique identifier for the stack item
+        type:
+          type: string
+          enum: [ingredient, tool, container, mixture, preparation]
+          description: Type of the stack item
+        name:
+          type: string
+          description: Display name of the item
+        properties:
+          type: object
+          description: Additional properties of the item
+#+END_SRC
+
+**** Example Usage
+
+#+BEGIN_SRC scheme
+;; Push an ingredient to the stack
+(kitchen 'push (make-ingredient 'butter '((state . 'solid) (temperature . 4))))
+
+;; Pop an item from the stack
+(define top-item (kitchen 'pop))
+
+;; Swap the top two items
+(kitchen 'swap)
+
+;; Duplicate the top item
+(kitchen 'dup)
+#+END_SRC
+
+*** Transformation API
+**** Description
+API for applying cooking transformations to ingredients and mixtures.
+
+**** Endpoints
+
+#+BEGIN_SRC yaml :tangle docs/api/openapi/kitchen-transformation.yaml :mkdirp yes
+openapi: 3.1.0
+info:
+  title: Cuisine Code Transformation API
+  version: 1.0.0
+  description: APIs for applying culinary transformations in Cuisine Code
+paths:
+  /api/kitchen/transform:
+    post:
+      summary: Apply transformation
+      description: Apply a culinary transformation to ingredients
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              required:
+                - transformation
+              properties:
+                transformation:
+                  type: string
+                  description: Transformation to apply
+                parameters:
+                  type: object
+                  description: Additional parameters for the transformation
+      responses:
+        '200':
+          description: Successful transformation
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  result:
+                    $ref: '#/components/schemas/TransformationResult'
+  /api/kitchen/transformations:
+    get:
+      summary: List transformations
+      description: Get a list of available transformations
+      responses:
+        '200':
+          description: Successful operation
+          content:
+            application/json:
+              schema:
+                type: array
+                items:
+                  $ref: '#/components/schemas/Transformation'
+components:
+  schemas:
+    Transformation:
+      type: object
+      properties:
+        id:
+          type: string
+          description: Unique identifier for the transformation
+        name:
+          type: string
+          description: Display name of the transformation
+        category:
+          type: string
+          enum: [mechanical, thermal, chemical, combined]
+          description: Category of transformation
+        description:
+          type: string
+          description: Detailed description of the transformation
+        parameters:
+          type: array
+          items:
+            $ref: '#/components/schemas/TransformationParameter'
+    TransformationParameter:
+      type: object
+      properties:
+        name:
+          type: string
+          description: Parameter name
+        type:
+          type: string
+          enum: [string, number, boolean, enum]
+          description: Parameter type
+        required:
+          type: boolean
+          description: Whether the parameter is required
+        default:
+          type: string
+          description: Default value for the parameter
+        options:
+          type: array
+          items:
+            type: string
+          description: Available options for enum parameters
+    TransformationResult:
+      type: object
+      properties:
+        id:
+          type: string
+          description: Unique identifier for the result
+        type:
+          type: string
+          description: Type of the result
+        name:
+          type: string
+          description: Display name of the result
+        properties:
+          type: object
+          description: Properties of the result
+        source_items:
+          type: array
+          items:
+            type: string
+          description: IDs of items used in the transformation
+#+END_SRC
+
+**** Example Usage
+
+#+BEGIN_SRC scheme
+;; Apply a chop transformation
+(kitchen 'transform 'chop '((style . 'fine)))
+
+;; Apply a heating transformation
+(kitchen 'transform 'saute '((temperature . 180) (duration . 120)))
+
+;; Apply a mixing transformation
+(kitchen 'transform 'fold '())
+#+END_SRC
+
+** Recipe API
+*** Recipe Definition
+**** Description
+API for defining, storing, and retrieving cooking recipes.
+
+**** Endpoints
+
+#+BEGIN_SRC yaml :tangle docs/api/openapi/recipe.yaml :mkdirp yes
+openapi: 3.1.0
+info:
+  title: Cuisine Code Recipe API
+  version: 1.0.0
+  description: APIs for recipe definition and management
+paths:
+  /api/recipes:
+    get:
+      summary: List recipes
+      description: Get a list of available recipes
+      parameters:
+        - name: category
+          in: query
+          description: Filter by recipe category
+          required: false
+          schema:
+            type: string
+        - name: difficulty
+          in: query
+          description: Filter by difficulty level
+          required: false
+          schema:
+            type: string
+            enum: [beginner, intermediate, advanced, expert]
+      responses:
+        '200':
+          description: Successful operation
+          content:
+            application/json:
+              schema:
+                type: array
+                items:
+                  $ref: '#/components/schemas/RecipeSummary'
+    post:
+      summary: Create recipe
+      description: Create a new recipe
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/RecipeDefinition'
+      responses:
+        '201':
+          description: Recipe created
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Recipe'
+  /api/recipes/{id}:
+    get:
+      summary: Get recipe
+      description: Get a specific recipe by ID
+      parameters:
+        - name: id
+          in: path
+          required: true
+          schema:
+            type: string
+      responses:
+        '200':
+          description: Successful operation
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Recipe'
+    put:
+      summary: Update recipe
+      description: Update an existing recipe
+      parameters:
+        - name: id
+          in: path
+          required: true
+          schema:
+            type: string
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/RecipeDefinition'
+      responses:
+        '200':
+          description: Recipe updated
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Recipe'
+    delete:
+      summary: Delete recipe
+      description: Delete a recipe
+      parameters:
+        - name: id
+          in: path
+          required: true
+          schema:
+            type: string
+      responses:
+        '204':
+          description: Recipe deleted
+components:
+  schemas:
+    RecipeSummary:
+      type: object
+      properties:
+        id:
+          type: string
+          description: Unique identifier for the recipe
+        name:
+          type: string
+          description: Display name of the recipe
+        category:
+          type: string
+          description: Recipe category
+        difficulty:
+          type: string
+          enum: [beginner, intermediate, advanced, expert]
+          description: Difficulty level
+        description:
+          type: string
+          description: Brief description of the recipe
+    RecipeDefinition:
+      type: object
+      required:
+        - name
+        - steps
+      properties:
+        name:
+          type: string
+          description: Recipe name
+        category:
+          type: string
+          description: Recipe category
+        difficulty:
+          type: string
+          enum: [beginner, intermediate, advanced, expert]
+          description: Difficulty level
+        description:
+          type: string
+          description: Recipe description
+        ingredients:
+          type: array
+          items:
+            $ref: '#/components/schemas/IngredientReference'
+        steps:
+          type: array
+          items:
+            $ref: '#/components/schemas/RecipeStep'
+        expected_result:
+          type: object
+          description: Expected result of the recipe
+    Recipe:
+      allOf:
+        - $ref: '#/components/schemas/RecipeSummary'
+        - $ref: '#/components/schemas/RecipeDefinition'
+        - type: object
+          properties:
+            created_at:
+              type: string
+              format: date-time
+              description: Creation timestamp
+            updated_at:
+              type: string
+              format: date-time
+              description: Last update timestamp
+            author:
+              type: string
+              description: Recipe author ID
+    IngredientReference:
+      type: object
+      properties:
+        id:
+          type: string
+          description: Ingredient ID
+        name:
+          type: string
+          description: Ingredient name
+        quantity:
+          type: number
+          description: Quantity
+        unit:
+          type: string
+          description: Unit of measurement
+    RecipeStep:
+      type: object
+      properties:
+        operation:
+          type: string
+          description: Operation to perform
+        parameters:
+          type: object
+          description: Operation parameters
+        description:
+          type: string
+          description: Human-readable description
+#+END_SRC
+
+**** Example Usage
+
+#+BEGIN_SRC scheme
+;; Define a new recipe
+(define-recipe 'compound-butter
+  :name "Herb Compound Butter"
+  :category "Basics"
+  :difficulty 'beginner
+  :description "A simple herb-infused butter for enhancing dishes."
+  :ingredients '(("butter" 250 "g")
+                 ("herbs" 30 "g")
+                 ("garlic" 2 "cloves")
+                 ("salt" 5 "g"))
+  :steps
+  '((push "butter")
+    (transform 'soften '((temperature . 20)))
+    (push "herbs")
+    (transform 'chop '((style . 'fine)))
+    (push "garlic")
+    (transform 'mince)
+    (push "salt")
+    (transform 'combine)
+    (transform 'shape '((form . 'log)))
+    (transform 'chill '((duration . 120))))
+  :expected-result '((type . "compound-butter")
+                    (properties . ((state . 'solid)
+                                  (flavor . 'herb-garlic)))))
+#+END_SRC
+
+** Social API
+*** User Profiles
+**** Description
+API for managing user profiles and kitchens.
+
+**** Endpoints
+
+#+BEGIN_SRC yaml :tangle docs/api/openapi/social-profiles.yaml :mkdirp yes
+openapi: 3.1.0
+info:
+  title: Cuisine Code User Profile API
+  version: 1.0.0
+  description: APIs for user profile management
+paths:
+  /api/users/profile:
+    get:
+      summary: Get user profile
+      description: Get the current user's profile
+      responses:
+        '200':
+          description: Successful operation
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/UserProfile'
+    put:
+      summary: Update profile
+      description: Update the current user's profile
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/ProfileUpdate'
+      responses:
+        '200':
+          description: Profile updated
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/UserProfile'
+  /api/users/{id}:
+    get:
+      summary: Get user
+      description: Get a specific user by ID
+      parameters:
+        - name: id
+          in: path
+          required: true
+          schema:
+            type: string
+      responses:
+        '200':
+          description: Successful operation
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/UserPublicProfile'
+  /api/users/kitchen:
+    get:
+      summary: Get kitchen
+      description: Get the current user's kitchen configuration
+      responses:
+        '200':
+          description: Successful operation
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/KitchenConfiguration'
+    put:
+      summary: Update kitchen
+      description: Update the current user's kitchen configuration
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/KitchenUpdate'
+      responses:
+        '200':
+          description: Kitchen updated
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/KitchenConfiguration'
+components:
+  schemas:
+    UserProfile:
+      type: object
+      properties:
+        id:
+          type: string
+          description: User ID
+        username:
+          type: string
+          description: Username
+        display_name:
+          type: string
+          description: Display name
+        email:
+          type: string
+          format: email
+          description: Email address
+        location:
+          type: string
+          description: User location
+        bio:
+          type: string
+          description: User biography
+        preferences:
+          type: object
+          description: User preferences
+        created_at:
+          type: string
+          format: date-time
+          description: Account creation time
+    ProfileUpdate:
+      type: object
+      properties:
+        display_name:
+          type: string
+          description: Display name
+        location:
+          type: string
+          description: User location
+        bio:
+          type: string
+          description: User biography
+        preferences:
+          type: object
+          description: User preferences
+    UserPublicProfile:
+      type: object
+      properties:
+        id:
+          type: string
+          description: User ID
+        username:
+          type: string
+          description: Username
+        display_name:
+          type: string
+          description: Display name
+        location:
+          type: string
+          description: User location
+        bio:
+          type: string
+          description: User biography
+    KitchenConfiguration:
+      type: object
+      properties:
+        id:
+          type: string
+          description: Kitchen ID
+        name:
+          type: string
+          description: Kitchen name
+        location:
+          type: string
+          description: Kitchen location
+        equipment:
+          type: array
+          items:
+            $ref: '#/components/schemas/KitchenEquipment'
+        layout:
+          type: object
+          description: Kitchen layout configuration
+    KitchenEquipment:
+      type: object
+      properties:
+        id:
+          type: string
+          description: Equipment ID
+        type:
+          type: string
+          description: Equipment type
+        name:
+          type: string
+          description: Equipment name
+        quantity:
+          type: integer
+          description: Quantity
+        properties:
+          type: object
+          description: Equipment properties
+    KitchenUpdate:
+      type: object
+      properties:
+        name:
+          type: string
+          description: Kitchen name
+        location:
+          type: string
+          description: Kitchen location
+        equipment:
+          type: array
+          items:
+            $ref: '#/components/schemas/KitchenEquipment'
+        layout:
+          type: object
+          description: Kitchen layout configuration
+#+END_SRC
+
+*** Recipe Sharing
+**** Description
+API for sharing and collaborating on recipes.
+
+**** Endpoints
+
+#+BEGIN_SRC yaml :tangle docs/api/openapi/social-sharing.yaml :mkdirp yes
+openapi: 3.1.0
+info:
+  title: Cuisine Code Recipe Sharing API
+  version: 1.0.0
+  description: APIs for recipe sharing and collaboration
+paths:
+  /api/social/shared-recipes:
+    get:
+      summary: Get shared recipes
+      description: Get a list of recipes shared with the current user
+      responses:
+        '200':
+          description: Successful operation
+          content:
+            application/json:
+              schema:
+                type: array
+                items:
+                  $ref: '#/components/schemas/SharedRecipe'
+  /api/social/share:
+    post:
+      summary: Share recipe
+      description: Share a recipe with other users
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              required:
+                - recipe_id
+                - user_ids
+              properties:
+                recipe_id:
+                  type: string
+                  description: ID of the recipe to share
+                user_ids:
+                  type: array
+                  items:
+                    type: string
+                  description: IDs of users to share with
+                message:
+                  type: string
+                  description: Optional message
+      responses:
+        '200':
+          description: Recipe shared
+  /api/social/friends:
+    get:
+      summary: Get friends
+      description: Get the current user's friends
+      responses:
+        '200':
+          description: Successful operation
+          content:
+            application/json:
+              schema:
+                type: array
+                items:
+                  $ref: '#/components/schemas/FriendSummary'
+    post:
+      summary: Add friend
+      description: Send a friend request
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              required:
+                - user_id
+              properties:
+                user_id:
+                  type: string
+                  description: ID of the user to add as a friend
+                message:
+                  type: string
+                  description: Optional message
+      responses:
+        '200':
+          description: Friend request sent
+  /api/social/friends/{id}:
+    delete:
+      summary: Remove friend
+      description: Remove a friend
+      parameters:
+        - name: id
+          in: path
+          required: true
+          schema:
+            type: string
+      responses:
+        '204':
+          description: Friend removed
+  /api/social/friend-requests:
+    get:
+      summary: Get friend requests
+      description: Get pending friend requests
+      responses:
+        '200':
+          description: Successful operation
+          content:
+            application/json:
+              schema:
+                type: array
+                items:
+                  $ref: '#/components/schemas/FriendRequest'
+    put:
+      summary: Respond to request
+      description: Accept or decline a friend request
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              required:
+                - request_id
+                - action
+              properties:
+                request_id:
+                  type: string
+                  description: ID of the friend request
+                action:
+                  type: string
+                  enum: [accept, decline]
+                  description: Action to take
+      responses:
+        '200':
+          description: Request processed
+components:
+  schemas:
+    SharedRecipe:
+      type: object
+      properties:
+        id:
+          type: string
+          description: Shared recipe ID
+        recipe:
+          $ref: '#/components/schemas/RecipeSummary'
+        shared_by:
+          $ref: '#/components/schemas/UserPublicProfile'
+        shared_at:
+          type: string
+          format: date-time
+          description: Sharing timestamp
+        message:
+          type: string
+          description: Sharing message
+    FriendSummary:
+      type: object
+      properties:
+        id:
+          type: string
+          description: User ID
+        username:
+          type: string
+          description: Username
+        display_name:
+          type: string
+          description: Display name
+        status:
+          type: string
+          enum: [online, offline, cooking]
+          description: User status
+    FriendRequest:
+      type: object
+      properties:
+        id:
+          type: string
+          description: Request ID
+        from:
+          $ref: '#/components/schemas/UserPublicProfile'
+        sent_at:
+          type: string
+          format: date-time
+          description: Request timestamp
+        message:
+          type: string
+          description: Request message
+    RecipeSummary:
+      type: object
+      properties:
+        id:
+          type: string
+          description: Recipe ID
+        name:
+          type: string
+          description: Recipe name
+        category:
+          type: string
+          description: Recipe category
+        difficulty:
+          type: string
+          enum: [beginner, intermediate, advanced, expert]
+          description: Difficulty level
+    UserPublicProfile:
+      type: object
+      properties:
+        id:
+          type: string
+          description: User ID
+        username:
+          type: string
+          description: Username
+        display_name:
+          type: string
+          description: Display name
+#+END_SRC
+
+** Integration API
+*** External System Integration
+**** Description
+API for integrating with external systems.
+
+**** Endpoints
+
+#+BEGIN_SRC yaml :tangle docs/api/openapi/integration.yaml :mkdirp yes
+openapi: 3.1.0
+info:
+  title: Cuisine Code Integration API
+  version: 1.0.0
+  description: APIs for external system integration
+paths:
+  /api/integration/import:
+    post:
+      summary: Import data
+      description: Import data from external sources
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              required:
+                - type
+                - data
+              properties:
+                type:
+                  type: string
+                  enum: [recipe, ingredient, kitchen]
+                  description: Type of data to import
+                format:
+                  type: string
+                  enum: [json, yaml, xml]
+                  description: Format of the data
+                data:
+                  type: string
+                  description: Data to import
+      responses:
+        '200':
+          description: Data imported
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  id:
+                    type: string
+                    description: ID of the imported item
+                  type:
+                    type: string
+                    description: Type of the imported item
+  /api/integration/export/{type}/{id}:
+    get:
+      summary: Export data
+      description: Export data to various formats
+      parameters:
+        - name: type
+          in: path
+          required: true
+          schema:
+            type: string
+            enum: [recipe, kitchen, user]
+          description: Type of data to export
+        - name: id
+          in: path
+          required: true
+          schema:
+            type: string
+          description: ID of the item to export
+        - name: format
+          in: query
+          required: false
+          schema:
+            type: string
+            enum: [json, yaml, xml, pdf]
+            default: json
+          description: Export format
+      responses:
+        '200':
+          description: Data exported
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  data:
+                    type: string
+                    description: Exported data
+  /api/integration/webhooks:
+    get:
+      summary: List webhooks
+      description: Get a list of configured webhooks
+      responses:
+        '200':
+          description: Successful operation
+          content:
+            application/json:
+              schema:
+                type: array
+                items:
+                  $ref: '#/components/schemas/Webhook'
+    post:
+      summary: Create webhook
+      description: Create a new webhook
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/WebhookDefinition'
+      responses:
+        '201':
+          description: Webhook created
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Webhook'
+  /api/integration/webhooks/{id}:
+    get:
+      summary: Get webhook
+      description: Get a specific webhook
+      parameters:
+        - name: id
+          in: path
+          required: true
+          schema:
+            type: string
+      responses:
+        '200':
+          description: Successful operation
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Webhook'
+    put:
+      summary: Update webhook
+      description: Update an existing webhook
+      parameters:
+        - name: id
+          in: path
+          required: true
+          schema:
+            type: string
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/WebhookDefinition'
+      responses:
+        '200':
+          description: Webhook updated
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Webhook'
+    delete:
+      summary: Delete webhook
+      description: Delete a webhook
+      parameters:
+        - name: id
+          in: path
+          required: true
+          schema:
+            type: string
+      responses:
+        '204':
+          description: Webhook deleted
+components:
+  schemas:
+    WebhookDefinition:
+      type: object
+      required:
+        - name
+        - url
+        - events
+      properties:
+        name:
+          type: string
+          description: Webhook name
+        url:
+          type: string
+          format: uri
+          description: Webhook URL
+        events:
+          type: array
+          items:
+            type: string
+          description: Events to trigger the webhook
+        secret:
+          type: string
+          description: Webhook secret for signature verification
+        active:
+          type: boolean
+          default: true
+          description: Whether the webhook is active
+    Webhook:
+      allOf:
+        - $ref: '#/components/schemas/WebhookDefinition'
+        - type: object
+          properties:
+            id:
+              type: string
+              description: Webhook ID
+            created_at:
+              type: string
+              format: date-time
+              description: Creation timestamp
+            last_triggered:
+              type: string
+              format: date-time
+              description: Last trigger timestamp
+            trigger_count:
+              type: integer
+              description: Number of times the webhook has been triggered
+#+END_SRC
+
+** Client SDKs
+
+To facilitate integration with the Cuisine Code API, client SDKs are available in multiple languages.
+
+#+BEGIN_SRC scheme :tangle docs/api/sdks.md :mkdirp yes
+# Cuisine Code Client SDKs
+
+## JavaScript SDK
+
+```javascript
+// Install via npm
+// npm install cuisine-code-sdk
+
+// Usage example
+import { KitchenClient } from 'cuisine-code-sdk';
+
+const kitchen = new KitchenClient({
+  apiKey: 'your-api-key'
+});
+
+// Stack operations
+kitchen.push('butter')
+  .then(() => kitchen.push('herbs'))
+  .then(() => kitchen.transform('chop', { style: 'fine' }))
+  .then(() => kitchen.transform('combine'))
+  .then(result => console.log('Result:', result))
+  .catch(error => console.error('Error:', error));
+```
+
+## Python SDK
+
+```python
+# Install via pip
+# pip install cuisine-code-sdk
+
+# Usage example
+from cuisinecode import KitchenClient
+
+kitchen = KitchenClient(api_key='your-api-key')
+
+# Stack operations
+kitchen.push('butter')
+kitchen.push('herbs')
+kitchen.transform('chop', style='fine')
+result = kitchen.transform('combine')
+print(f'Result: {result}')
+```
+
+## Ruby SDK
+
+```ruby
+# Install via gem
+# gem install cuisine_code
+
+# Usage example
+require 'cuisine_code'
+
+kitchen = CuisineCode::KitchenClient.new(api_key: 'your-api-key')
+
+# Stack operations
+kitchen.push('butter')
+kitchen.push('herbs')
+kitchen.transform('chop', style: 'fine')
+result = kitchen.transform('combine')
+puts "Result: #{result}"
+```
+
+## Java SDK
+
+```java
+// Add dependency to your project
+// Maven, Gradle, etc.
+
+// Usage example
+import com.cuisinecode.KitchenClient;
+import com.cuisinecode.models.*;
+
+public class CookingExample {
+    public static void main(String[] args) {
+        KitchenClient kitchen = new KitchenClient("your-api-key");
+        
+        try {
+            kitchen.push("butter");
+            kitchen.push("herbs");
+            
+            TransformOptions options = new TransformOptions();
+            options.setStyle("fine");
+            
+            kitchen.transform("chop", options);
+            TransformationResult result = kitchen.transform("combine");
+            
+            System.out.println("Result: " + result.getName());
+        } catch (CuisineCodeException e) {
+            System.err.println("Error: " + e.getMessage());
+        }
+    }
+}
+```
+#+END_SRC
+
+** API Versioning
+
+The Cuisine Code API follows semantic versioning. Major version changes indicate breaking changes.
+
+** Authentication
+
+Authentication is required for most API endpoints. Two authentication methods are supported:
+1. API Key Authentication
+2. OAuth 2.0 (for user-specific operations)
+
+#+BEGIN_SRC scheme :tangle docs/api/authentication.md :mkdirp yes
+# Cuisine Code API Authentication
+
+## API Key Authentication
+
+For server-to-server communication, use API key authentication:
+
+```
+Authorization: Bearer YOUR_API_KEY
+```
+
+API keys can be generated in the developer dashboard.
+
+## OAuth 2.0 Authentication
+
+For user-specific operations, use OAuth 2.0:
+
+1. Register your application in the developer dashboard
+2. Implement the OAuth 2.0 authorization code flow
+3. Include the access token in API requests:
+
+```
+Authorization: Bearer YOUR_ACCESS_TOKEN
+```
+
+## Scopes
+
+The following OAuth scopes are available:
+
+- `kitchen:read` - Read access to kitchen operations
+- `kitchen:write` - Write access to kitchen operations
+- `recipe:read` - Read access to recipes
+- `recipe:write` - Write access to recipes
+- `user:read` - Read access to user profile
+- `user:write` - Write access to user profile
+- `social:read` - Read access to social features
+- `social:write` - Write access to social features
+```
+#+END_SRC
+
+** Rate Limiting
+
+The API employs rate limiting to ensure fair usage. Limits are applied on a per-API key basis.
+
+#+BEGIN_SRC scheme :tangle docs/api/rate-limiting.md :mkdirp yes
+# Rate Limiting
+
+The Cuisine Code API implements rate limiting to ensure fair usage and system stability.
+
+## Rate Limit Headers
+
+Rate limit information is included in the response headers:
+
+- `X-RateLimit-Limit`: Maximum number of requests allowed in the current time window
+- `X-RateLimit-Remaining`: Number of requests remaining in the current time window
+- `X-RateLimit-Reset`: Time when the current rate limit window resets (Unix timestamp)
+
+## Default Limits
+
+- 60 requests per minute for authenticated requests
+- 10 requests per minute for unauthenticated requests
+
+## Handling Rate Limiting
+
+When rate limits are exceeded, the API returns a `429 Too Many Requests` status code.
+
+Example handling in JavaScript:
+
+```javascript
+fetch('https://api.cuisinecode.com/v1/kitchen/stack')
+  .then(response => {
+    // Check for rate limiting
+    if (response.status === 429) {
+      const resetTime = response.headers.get('X-RateLimit-Reset');
+      const waitTime = resetTime - Math.floor(Date.now() / 1000);
+      console.log(`Rate limit exceeded. Try again in ${waitTime} seconds.`);
+      return;
+    }
+    return response.json();
+  })
+  .then(data => {
+    // Process data
+  })
+  .catch(error => {
+    console.error('Error:', error);
+  });
+```
+#+END_SRC

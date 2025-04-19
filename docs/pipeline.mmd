@@ -1,0 +1,15 @@
+graph TD
+    A[Scheme Source Code] --> B[Abstract Syntax Tree Generation]
+    B --> C[Intermediate Representation]
+    C --> D[C Target]
+    C --> E[JavaScript Target]
+    C --> F[WASM Target]
+    D --> G[C Optimizations]
+    E --> H[JS Optimizations]
+    F --> I[WASM Optimizations]
+    G --> J[C Output]
+    H --> K[JS Output]
+    I --> L[WASM Output]
+    J --> M[Bundled Application]
+    K --> M
+    L --> M

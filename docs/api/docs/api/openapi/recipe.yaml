@@ -1,0 +1,195 @@
+openapi: 3.1.0
+info:
+  title: Cuisine Code Recipe API
+  version: 1.0.0
+  description: APIs for recipe definition and management
+paths:
+  /api/recipes:
+    get:
+      summary: List recipes
+      description: Get a list of available recipes
+      parameters:
+        - name: category
+          in: query
+          description: Filter by recipe category
+          required: false
+          schema:
+            type: string
+        - name: difficulty
+          in: query
+          description: Filter by difficulty level
+          required: false
+          schema:
+            type: string
+            enum: [beginner, intermediate, advanced, expert]
+      responses:
+        '200':
+          description: Successful operation
+          content:
+            application/json:
+              schema:
+                type: array
+                items:
+                  $ref: '#/components/schemas/RecipeSummary'
+    post:
+      summary: Create recipe
+      description: Create a new recipe
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/RecipeDefinition'
+      responses:
+        '201':
+          description: Recipe created
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Recipe'
+  /api/recipes/{id}:
+    get:
+      summary: Get recipe
+      description: Get a specific recipe by ID
+      parameters:
+        - name: id
+          in: path
+          required: true
+          schema:
+            type: string
+      responses:
+        '200':
+          description: Successful operation
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Recipe'
+    put:
+      summary: Update recipe
+      description: Update an existing recipe
+      parameters:
+        - name: id
+          in: path
+          required: true
+          schema:
+            type: string
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/RecipeDefinition'
+      responses:
+        '200':
+          description: Recipe updated
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Recipe'
+    delete:
+      summary: Delete recipe
+      description: Delete a recipe
+      parameters:
+        - name: id
+          in: path
+          required: true
+          schema:
+            type: string
+      responses:
+        '204':
+          description: Recipe deleted
+components:
+  schemas:
+    RecipeSummary:
+      type: object
+      properties:
+        id:
+          type: string
+          description: Unique identifier for the recipe
+        name:
+          type: string
+          description: Display name of the recipe
+        category:
+          type: string
+          description: Recipe category
+        difficulty:
+          type: string
+          enum: [beginner, intermediate, advanced, expert]
+          description: Difficulty level
+        description:
+          type: string
+          description: Brief description of the recipe
+    RecipeDefinition:
+      type: object
+      required:
+        - name
+        - steps
+      properties:
+        name:
+          type: string
+          description: Recipe name
+        category:
+          type: string
+          description: Recipe category
+        difficulty:
+          type: string
+          enum: [beginner, intermediate, advanced, expert]
+          description: Difficulty level
+        description:
+          type: string
+          description: Recipe description
+        ingredients:
+          type: array
+          items:
+            $ref: '#/components/schemas/IngredientReference'
+        steps:
+          type: array
+          items:
+            $ref: '#/components/schemas/RecipeStep'
+        expected_result:
+          type: object
+          description: Expected result of the recipe
+    Recipe:
+      allOf:
+        - $ref: '#/components/schemas/RecipeSummary'
+        - $ref: '#/components/schemas/RecipeDefinition'
+        - type: object
+          properties:
+            created_at:
+              type: string
+              format: date-time
+              description: Creation timestamp
+            updated_at:
+              type: string
+              format: date-time
+              description: Last update timestamp
+            author:
+              type: string
+              description: Recipe author ID
+    IngredientReference:
+      type: object
+      properties:
+        id:
+          type: string
+          description: Ingredient ID
+        name:
+          type: string
+          description: Ingredient name
+        quantity:
+          type: number
+          description: Quantity
+        unit:
+          type: string
+          description: Unit of measurement
+    RecipeStep:
+      type: object
+      properties:
+        operation:
+          type: string
+          description: Operation to perform
+        parameters:
+          type: object
+          description: Operation parameters
+        description:
+          type: string
+          description: Human-readable description

@@ -1,0 +1,111 @@
+openapi: 3.1.0
+info:
+  title: Cuisine Code Transformation API
+  version: 1.0.0
+  description: APIs for applying culinary transformations in Cuisine Code
+paths:
+  /api/kitchen/transform:
+    post:
+      summary: Apply transformation
+      description: Apply a culinary transformation to ingredients
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              required:
+                - transformation
+              properties:
+                transformation:
+                  type: string
+                  description: Transformation to apply
+                parameters:
+                  type: object
+                  description: Additional parameters for the transformation
+      responses:
+        '200':
+          description: Successful transformation
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  result:
+                    $ref: '#/components/schemas/TransformationResult'
+  /api/kitchen/transformations:
+    get:
+      summary: List transformations
+      description: Get a list of available transformations
+      responses:
+        '200':
+          description: Successful operation
+          content:
+            application/json:
+              schema:
+                type: array
+                items:
+                  $ref: '#/components/schemas/Transformation'
+components:
+  schemas:
+    Transformation:
+      type: object
+      properties:
+        id:
+          type: string
+          description: Unique identifier for the transformation
+        name:
+          type: string
+          description: Display name of the transformation
+        category:
+          type: string
+          enum: [mechanical, thermal, chemical, combined]
+          description: Category of transformation
+        description:
+          type: string
+          description: Detailed description of the transformation
+        parameters:
+          type: array
+          items:
+            $ref: '#/components/schemas/TransformationParameter'
+    TransformationParameter:
+      type: object
+      properties:
+        name:
+          type: string
+          description: Parameter name
+        type:
+          type: string
+          enum: [string, number, boolean, enum]
+          description: Parameter type
+        required:
+          type: boolean
+          description: Whether the parameter is required
+        default:
+          type: string
+          description: Default value for the parameter
+        options:
+          type: array
+          items:
+            type: string
+          description: Available options for enum parameters
+    TransformationResult:
+      type: object
+      properties:
+        id:
+          type: string
+          description: Unique identifier for the result
+        type:
+          type: string
+          description: Type of the result
+        name:
+          type: string
+          description: Display name of the result
+        properties:
+          type: object
+          description: Properties of the result
+        source_items:
+          type: array
+          items:
+            type: string
+          description: IDs of items used in the transformation

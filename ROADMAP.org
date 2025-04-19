@@ -1,0 +1,232 @@
+#+TITLE: Cuisine Code Development Roadmap
+#+AUTHOR: Aidan Pace
+#+EMAIL: apace@defrecord.com
+#+DATE: 2025-04-19
+
+* Development Roadmap
+
+This document outlines the development roadmap for Cuisine Code, including planned features, milestones, and release schedule.
+
+** Overview
+
+Cuisine Code will be developed and released in four major versions, each building upon the previous one to create a comprehensive stack-based learning environment through French culinary metaphors.
+
+#+BEGIN_SRC scheme :tangle docs/version-evolution.mmd :mkdirp yes
+graph LR
+    A[v0.1.0 Alpha] --> B[v1.0 Basic Kitchen]
+    B --> C[v2.0 Recipe System]
+    C --> D[v3.0 Full Culinary Experience]
+    D --> E[v4.0 Social Cooking]
+#+END_SRC
+
+** Version 0.1.0 (Alpha Release)
+*** Core Focus
+Fundamental Stack Operations through Simple French Butter Making
+
+*** Key Features
+- Basic kitchen stack implementation (push, pop, peek, swap, rot)
+- Simple ingredient transformations (chop, mix, heat, cool)
+- Text-based interface with ASCII art visualization of the stack
+- Tutorial mode teaching basic stack operations
+- Five starter recipes focused on compound butter variations
+
+*** Development Milestones
+1. [X] Core stack implementation
+2. [X] Basic transformation registry
+3. [X] Terminal user interface
+4. [X] ASCII ingredient visualization
+5. [ ] Tutorial system basic implementation
+6. [ ] Initial recipe definitions
+7. [ ] Feedback mechanic implementation
+
+*** Target Release Date
+Q2 2025
+
+** Version 1.0 (Full Release)
+*** Core Focus
+Comprehensive Cooking System with French Sauce Foundations
+
+*** Key Features
+- Visual stack interface with animated transformations
+- Multi-stack operations (mise en place, main preparation, cooking)
+- Recipe system with macro support
+- Timing-based preparation challenges
+- Measurement system requiring precise calculations
+- Complete Mother Sauce preparation challenges
+- 25+ ingredients with unique properties
+- Resource management mechanics
+
+*** Development Milestones
+1. [ ] Enhanced stack visualization
+2. [ ] Expanded transformation system
+3. [ ] Recipe definition language
+4. [ ] Kitchen timing mechanics
+5. [ ] Mother sauce implementation
+6. [ ] Measurement system
+7. [ ] Ingredient property system
+8. [ ] Resource management
+9. [ ] Expanded tutorial system
+10. [ ] Basic browser interface
+
+*** Target Release Date
+Q4 2025
+
+** Version 2.0 (Expansion)
+*** Core Focus
+Advanced French Culinary Techniques and Multi-Course Programming
+
+*** Key Features
+- Full mise en place macro system for reusable recipe components
+- Recursive recipes (ingredients that are themselves recipes)
+- Parallel cooking operations (multithreading metaphor)
+- Temperature control system with state transformations
+- Roux-based sauce progression challenges
+- Visual debugging tools to "see" inside your recipes
+- Competitive mode with timing and quality scoring
+- Recipe optimization mechanics
+- Custom recipe creation system
+
+*** Development Milestones
+1. [ ] Mise en place macro implementation
+2. [ ] Recursive recipe support
+3. [ ] Parallel operations system
+4. [ ] Temperature control mechanics
+5. [ ] Advanced transformation progressions
+6. [ ] Visual debugging tools
+7. [ ] Scoring and evaluation system
+8. [ ] Recipe editor and creator
+9. [ ] Performance optimization
+10. [ ] Enhanced web interface
+
+*** Target Release Date
+Q2 2026
+
+** Version 3.0 (Ultimate Edition)
+*** Core Focus
+Complete French Cuisine Programming Environment
+
+*** Key Features
+- Full graphical kitchen environment with 3D visualization
+- Complete French culinary curriculum from basics to haute cuisine
+- Advanced programming concepts through culinary metaphors:
+  - Exception handling (kitchen disasters)
+  - Type checking (ingredient compatibility)
+  - Lazy evaluation (slow cooking methods)
+  - Higher-order functions (chef techniques)
+- Recipe version control system
+- Machine learning component that analyzes your cooking patterns
+- Complete computational model integration
+- Professional chef-designed challenges based on actual French techniques
+
+*** Development Milestones
+1. [ ] 3D kitchen visualization
+2. [ ] Comprehensive curriculum development
+3. [ ] Exception handling system
+4. [ ] Type system implementation
+5. [ ] Lazy evaluation mechanics
+6. [ ] Higher-order function representation
+7. [ ] Recipe version control
+8. [ ] ML-based pattern analysis
+9. [ ] Computational model integration
+10. [ ] Professional challenge design
+
+*** Target Release Date
+Q4 2026
+
+** Version 4.0 (Social Edition)
+*** Core Focus
+Collaborative Cooking and Community Features
+
+*** Key Features
+- User profiles with customizable kitchens
+- Social login via GitHub and Google
+- Recipe sharing between users
+- Collaborative cooking sessions
+- Location-based kitchen variations (e.g. Boston kitchen)
+- Recipe rating and commenting
+- Community challenges and competitions
+- Chef reputation system
+- Real-time cooking assistance
+- Recipe marketplace
+
+*** Development Milestones
+1. [ ] User authentication system
+2. [ ] Profile management
+3. [ ] Kitchen customization
+4. [ ] Recipe sharing mechanisms
+5. [ ] Collaborative cooking implementation
+6. [ ] Location-based variations
+7. [ ] Community features
+8. [ ] Rating and reputation system
+9. [ ] Real-time assistance
+10. [ ] Marketplace infrastructure
+
+*** Target Release Date
+Q2 2027
+
+** Future Possibilities (v5.0+)
+
+*** Mobile Applications
+- Native iOS and Android versions
+- Touch-based cooking interactions
+- Mobile-optimized interfaces
+
+*** AR/VR Integration
+- Virtual kitchen environments
+- Spatial computing interfaces
+- Gesture-based cooking
+
+*** AI-Powered Features
+- Intelligent recipe suggestions
+- Style analysis and recommendations
+- Learning pattern optimization
+
+*** Educational Integration
+- Classroom modules
+- Progress tracking for educators
+- Curriculum alignment
+
+*** Real-World Connections
+- Recipe export to actual cooking instructions
+- Ingredient shopping lists
+- Smart kitchen device integration
+
+#+BEGIN_SRC scheme :tangle docs/future-vision.mmd :mkdirp yes
+graph TD
+    A[Future Vision] --> B[Mobile]
+    A --> C[AR/VR]
+    A --> D[AI Features]
+    A --> E[Education]
+    A --> F[Real-World]
+    
+    B --> G[iOS App]
+    B --> H[Android App]
+    
+    C --> I[Virtual Kitchen]
+    C --> J[Spatial Interface]
+    
+    D --> K[AI Recipe Generation]
+    D --> L[Learning Analysis]
+    
+    E --> M[Classroom Tools]
+    E --> N[Curriculum Integration]
+    
+    F --> O[Smart Kitchen]
+    F --> P[Recipe Export]
+#+END_SRC
+
+** Development Priorities
+
+1. Core functionality and stability
+2. User experience and engagement
+3. Educational effectiveness
+4. Community and social features
+5. Platform expansion
+
+** Resource Allocation
+
+- 50% Core game mechanics
+- 20% User interface and experience
+- 15% Educational content
+- 10% Infrastructure and deployment
+- 5% Documentation and support
