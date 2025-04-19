@@ -4,8 +4,19 @@
 #+DATE: 2025-04-19
 
 * Cuisine Code: Learn Stack-Based Computing Through French Cooking
-
-[[file:docs/logo.png]]
+#+BEGIN_HTML
+<p align="center">
+  <a href="https://github.com/defrecord/cuisine-code">
+    <img src="https://github.com/defrecord/cuisine-code/raw/main/assets/images/cuisine-code-logo.png" alt="Cuisine Code Logo" width="400"/>
+  </a>
+</p>
+<p align="center">
+  <a href="https://github.com/defrecord/cuisine-code/releases"><img src="https://img.shields.io/github/v/release/defrecord/cuisine-code?include_prereleases&style=flat-square" alt="GitHub Release"></a>
+  <a href="https://github.com/defrecord/cuisine-code/blob/main/LICENSE"><img src="https://img.shields.io/github/license/defrecord/cuisine-code?style=flat-square" alt="License"></a>
+  <a href="https://github.com/defrecord/cuisine-code/issues"><img src="https://img.shields.io/github/issues/defrecord/cuisine-code?style=flat-square" alt="Issues"></a>
+  <a href="https://github.com/defrecord/cuisine-code/milestones"><img src="https://img.shields.io/github/milestones/all/defrecord/cuisine-code?style=flat-square" alt="Milestones"></a>
+</p>
+#+END_HTML
 
 Cuisine Code is an educational game that teaches stack-based computing concepts through French culinary metaphors. By interacting with a virtual kitchen, players learn fundamental programming concepts in an engaging and intuitive way.
 
