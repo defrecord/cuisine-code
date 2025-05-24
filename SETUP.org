@@ -1776,3 +1776,6384 @@ clean:
                `(expected an error but none was raised)))))
 #+END_SRC
 
+** Ingredient Tests
+
+#+BEGIN_SRC scheme :tangle scheme/tests/core/ingredients/ingredient-tests.scm :mkdirp yes
+;;; ingredient-tests.scm -- Tests for ingredient implementation
+;;; Copyright (c) 2025 Aidan Pace
+
+(use-modules (cuisine-code tests test-framework)
+             (cuisine-code core ingredients ingredient))
+
+;; Test ingredient creation
+(define-test test-ingredient-creation
+  (let ((ingredient (make-ingredient "butter" '((state . solid) (fat . high)))))
+    (assert-equal "butter" (ingredient-name ingredient))
+    (assert-equal '((state . solid) (fat . high)) (ingredient-properties ingredient))))
+
+;; Test ingredient properties
+(define-test test-ingredient-properties
+  (let ((ingredient (make-ingredient "butter" '((state . solid) (fat . high)))))
+    (assert-equal 'solid (ingredient-property ingredient 'state))
+    (assert-equal 'high (ingredient-property ingredient 'fat))
+    (assert-equal #f (ingredient-property ingredient 'flavor))))
+
+;; Test setting ingredient properties
+(define-test test-set-ingredient-property
+  (let ((ingredient (make-ingredient "butter" '((state . solid) (fat . high)))))
+    (set-ingredient-property! ingredient 'state 'melted)
+    (assert-equal 'melted (ingredient-property ingredient 'state))
+    (set-ingredient-property! ingredient 'flavor 'rich)
+    (assert-equal 'rich (ingredient-property ingredient 'flavor))))
+
+;; Define test suite
+(define-test-suite ingredient-tests
+  test-ingredient-creation
+  test-ingredient-properties
+  test-set-ingredient-property)
+#+END_SRC
+
+#+BEGIN_SRC scheme :tangle scheme/tests/core/ingredients/store-tests.scm :mkdirp yes
+;;; store-tests.scm -- Tests for ingredient store
+;;; Copyright (c) 2025 Aidan Pace
+
+(use-modules (cuisine-code tests test-framework)
+             (cuisine-code core ingredients store)
+             (cuisine-code core ingredients ingredient))
+
+;; Test store creation
+(define-test test-store-creation
+  (let ((store (make-ingredient-store)))
+    (assert-equal '() (store 'list))
+    (assert-equal 0 (store 'count))))
+
+;; Test adding ingredients
+(define-test test-add-ingredient
+  (let ((store (make-ingredient-store)))
+    (store 'add "butter" '((state . solid) (fat . high)))
+    (store 'add "herbs" '((type . fresh) (flavor . strong)))
+    
+    (assert-equal '("butter" "herbs") (store 'list))
+    (assert-equal 2 (store 'count))))
+
+;; Test getting ingredients
+(define-test test-get-ingredient
+  (let ((store (make-ingredient-store)))
+    (store 'add "butter" '((state . solid) (fat . high)))
+    (store 'add "herbs" '((type . fresh) (flavor . strong)))
+    
+    (let ((butter (store 'get "butter"))
+          (herbs (store 'get "herbs")))
+      (assert-equal "butter" (ingredient-name butter))
+      (assert-equal 'solid (ingredient-property butter 'state))
+      (assert-equal "herbs" (ingredient-name herbs))
+      (assert-equal 'fresh (ingredient-property herbs 'type))
+      
+      (assert-error (lambda () (store 'get "garlic"))))))
+
+;; Test removing ingredients
+(define-test test-remove-ingredient
+  (let ((store (make-ingredient-store)))
+    (store 'add "butter" '((state . solid) (fat . high)))
+    (store 'add "herbs" '((type . fresh) (flavor . strong)))
+    
+    (store 'remove "butter")
+    (assert-equal '("herbs") (store 'list))
+    (assert-equal 1 (store 'count))
+    
+    (assert-error (lambda () (store 'get "butter")))))
+
+;; Define test suite
+(define-test-suite store-tests
+  test-store-creation
+  test-add-ingredient
+  test-get-ingredient
+  test-remove-ingredient)
+#+END_SRC
+
+** Transformation Tests
+
+#+BEGIN_SRC scheme :tangle scheme/tests/core/transformations/registry-tests.scm :mkdirp yes
+;;; registry-tests.scm -- Tests for transformation registry
+;;; Copyright (c) 2025 Aidan Pace
+
+(use-modules (cuisine-code tests test-framework)
+             (cuisine-code core transformations registry))
+
+;; Test registry creation
+(define-test test-registry-creation
+  (let ((registry (make-transformation-registry)))
+    (assert-equal '() (registry 'list))
+    (assert-equal 0 (registry 'count))))
+
+;; Test registering transformations
+(define-test test-register-transformation
+  (let ((registry (make-transformation-registry)))
+    (registry 'register 'chop
+             (lambda (ingredient . args)
+               (string-append "chopped-" ingredient)))
+    
+    (registry 'register 'dice
+             (lambda (ingredient . args)
+               (string-append "diced-" ingredient)))
+    
+    (assert-equal '(chop dice) (registry 'list))
+    (assert-equal 2 (registry 'count))))
+
+;; Test getting transformations
+(define-test test-get-transformation
+  (let ((registry (make-transformation-registry)))
+    (registry 'register 'chop
+             (lambda (ingredient . args)
+               (string-append "chopped-" ingredient)))
+    
+    (let ((chop-fn (registry 'get 'chop)))
+      (assert-true (procedure? chop-fn))
+      (assert-equal "chopped-carrot" (chop-fn "carrot"))
+      
+      (assert-error (lambda () (registry 'get 'dice))))))
+
+;; Test basic transformations registration
+(define-test test-basic-transformations
+  (let ((registry (make-transformation-registry)))
+    (register-basic-transformations registry)
+    
+    (assert-true (> (registry 'count) 0))
+    
+    (let ((chop-fn (registry 'get 'chop))
+          (dice-fn (registry 'get 'dice))
+          (saute-fn (registry 'get 'saute))
+          (combine-fn (registry 'get 'combine)))
+      
+      (assert-equal "medium-chopped-carrot" (chop-fn "carrot"))
+      (assert-equal "fine-chopped-carrot" (chop-fn "carrot" 'fine))
+      
+      (assert-equal "medium-diced-onion" (dice-fn "onion"))
+      (assert-equal "small-diced-onion" (dice-fn "onion" 'small))
+      
+      (assert-equal "sauteed-mushroom" (saute-fn "mushroom"))
+      
+      (assert-equal "combined-butter-and-herbs" 
+                    (combine-fn '("butter" "herbs")))
+      
+      (assert-error (lambda () (combine-fn "butter"))))))
+
+;; Define test suite
+(define-test-suite registry-tests
+  test-registry-creation
+  test-register-transformation
+  test-get-transformation
+  test-basic-transformations)
+#+END_SRC
+
+** Recipe Tests
+
+#+BEGIN_SRC scheme :tangle scheme/tests/core/recipes/definition-tests.scm :mkdirp yes
+;;; definition-tests.scm -- Tests for recipe definition
+;;; Copyright (c) 2025 Aidan Pace
+
+(use-modules (cuisine-code tests test-framework)
+             (cuisine-code core recipes definition))
+
+;; Test recipe creation
+(define-test test-recipe-creation
+  (let ((recipe (make-recipe 
+                 "Herb Butter"
+                 "Basics"
+                 'beginner
+                 "Simple herb-infused butter"
+                 '(("butter" 250 "g") ("herbs" 30 "g"))
+                 '((push "butter") (push "herbs") (transform 'combine))
+                 '((type . "compound-butter")))))
+    
+    (assert-equal "Herb Butter" (recipe-name recipe))
+    (assert-equal "Basics" (recipe-category recipe))
+    (assert-equal 'beginner (recipe-difficulty recipe))
+    (assert-equal "Simple herb-infused butter" (recipe-description recipe))
+    (assert-equal '(("butter" 250 "g") ("herbs" 30 "g")) 
+                  (recipe-ingredients recipe))
+    (assert-equal '((push "butter") (push "herbs") (transform 'combine)) 
+                  (recipe-steps recipe))
+    (assert-equal '((type . "compound-butter")) 
+                  (recipe-expected-result recipe))))
+
+;; Test recipe definition macro
+(define-test test-recipe-definition-macro
+  (define-recipe test-recipe
+    :name "Herb Butter"
+    :category "Basics"
+    :difficulty 'beginner
+    :description "Simple herb-infused butter"
+    :ingredients '(("butter" 250 "g") ("herbs" 30 "g"))
+    :steps '((push "butter") (push "herbs") (transform 'combine))
+    :expected-result '((type . "compound-butter")))
+  
+  (assert-equal "Herb Butter" (recipe-name test-recipe))
+  (assert-equal "Basics" (recipe-category test-recipe))
+  (assert-equal 'beginner (recipe-difficulty test-recipe)))
+
+;; Define test suite
+(define-test-suite definition-tests
+  test-recipe-creation
+  test-recipe-definition-macro)
+#+END_SRC
+
+#+BEGIN_SRC scheme :tangle scheme/tests/core/recipes/execution-tests.scm :mkdirp yes
+;;; execution-tests.scm -- Tests for recipe execution
+;;; Copyright (c) 2025 Aidan Pace
+
+(use-modules (cuisine-code tests test-framework)
+             (cuisine-code core kitchen kitchen)
+             (cuisine-code core recipes definition)
+             (cuisine-code core recipes execution))
+
+;; Utility to create a test kitchen
+(define (create-test-kitchen)
+  (let ((kitchen (make-kitchen)))
+    ;; Register basic transformations
+    (kitchen 'register-transformation 'chop
+             (lambda (ingredient . args)
+               (string-append "chopped-" ingredient)))
+    
+    (kitchen 'register-transformation 'mix
+             (lambda (ingredients . args)
+               (if (list? ingredients)
+                   (string-append "mixed-" (string-join ingredients "-and-"))
+                   ingredients)))
+    
+    kitchen))
+
+;; Test complete recipe execution
+(define-test test-execute-recipe
+  (let ((kitchen (create-test-kitchen))
+        (recipe (make-recipe 
+                 "Herb Butter"
+                 "Basics"
+                 'beginner
+                 "Simple herb-infused butter"
+                 '(("butter" 250 "g") ("herbs" 30 "g"))
+                 '((push "butter") 
+                   (push "herbs") 
+                   (transform 'chop) 
+                   (transform 'mix))
+                 '((type . "compound-butter")))))
+    
+    (let ((result (execute-recipe kitchen recipe)))
+      (assert-equal "mixed-butter-and-chopped-herbs" result))))
+
+;; Test step-by-step recipe execution
+(define-test test-step-recipe
+  (let ((kitchen (create-test-kitchen))
+        (recipe (make-recipe 
+                 "Herb Butter"
+                 "Basics"
+                 'beginner
+                 "Simple herb-infused butter"
+                 '(("butter" 250 "g") ("herbs" 30 "g"))
+                 '((push "butter") 
+                   (push "herbs") 
+                   (transform 'chop) 
+                   (transform 'mix))
+                 '((type . "compound-butter")))))
+    
+    ;; Step 1: Push butter
+    (step-recipe kitchen recipe 0)
+    (assert-equal '("butter") (kitchen 'stack))
+    
+    ;; Step 2: Push herbs
+    (step-recipe kitchen recipe 1)
+    (assert-equal '("herbs" "butter") (kitchen 'stack))
+    
+    ;; Step 3: Chop herbs
+    (step-recipe kitchen recipe 2)
+    (assert-equal '("chopped-herbs" "butter") (kitchen 'stack))
+    
+    ;; Step 4: Mix ingredients
+    (step-recipe kitchen recipe 3)
+    (assert-equal '("mixed-butter-and-chopped-herbs") (kitchen 'stack))
+    
+    ;; Test out-of-bounds steps
+    (assert-error (lambda () (step-recipe kitchen recipe 4)))))
+
+;; Define test suite
+(define-test-suite execution-tests
+  test-execute-recipe
+  test-step-recipe)
+#+END_SRC
+
+#+BEGIN_SRC scheme :tangle scheme/tests/core/recipes/library-tests.scm :mkdirp yes
+;;; library-tests.scm -- Tests for recipe library
+;;; Copyright (c) 2025 Aidan Pace
+
+(use-modules (cuisine-code tests test-framework)
+             (cuisine-code core recipes definition)
+             (cuisine-code core recipes library))
+
+;; Test library creation
+(define-test test-library-creation
+  (let ((library (make-recipe-library)))
+    (assert-equal '() (library 'list))
+    (assert-equal '() (library 'list-by-category "Basics"))
+    (assert-equal '() (library 'list-by-difficulty 'beginner))))
+
+;; Test adding recipes
+(define-test test-add-recipe
+  (let ((library (make-recipe-library))
+        (recipe1 (make-recipe 
+                  "Herb Butter"
+                  "Basics"
+                  'beginner
+                  "Simple herb-infused butter"
+                  '()
+                  '()
+                  '()))
+        (recipe2 (make-recipe 
+                  "Béchamel Sauce"
+                  "Sauces"
+                  'intermediate
+                  "Classic white sauce"
+                  '()
+                  '()
+                  '())))
+    
+    (library 'add recipe1)
+    (library 'add recipe2)
+    
+    (assert-equal '("Herb Butter" "Béchamel Sauce") (library 'list))))
+
+;; Test getting recipes
+(define-test test-get-recipe
+  (let ((library (make-recipe-library))
+        (recipe (make-recipe 
+                 "Herb Butter"
+                 "Basics"
+                 'beginner
+                 "Simple herb-infused butter"
+                 '()
+                 '()
+                 '())))
+    
+    (library 'add recipe)
+    
+    (let ((retrieved (library 'get "Herb Butter")))
+      (assert-equal "Herb Butter" (recipe-name retrieved))
+      (assert-equal "Basics" (recipe-category retrieved))
+      
+      (assert-error (lambda () (library 'get "Nonexistent Recipe"))))))
+
+;; Test filtering recipes
+(define-test test-filter-recipes
+  (let ((library (make-recipe-library)))
+    ;; Add recipes
+    (library 'add (make-recipe "Herb Butter" "Basics" 'beginner "" '() '() '()))
+    (library 'add (make-recipe "Mirepoix" "Basics" 'beginner "" '() '() '()))
+    (library 'add (make-recipe "Béchamel Sauce" "Sauces" 'intermediate "" '() '() '()))
+    (library 'add (make-recipe "Hollandaise Sauce" "Sauces" 'advanced "" '() '() '()))
+    
+    ;; Filter by category
+    (let ((basics (library 'list-by-category "Basics"))
+          (sauces (library 'list-by-category "Sauces"))
+          (desserts (library 'list-by-category "Desserts")))
+      
+      (assert-equal 2 (length basics))
+      (assert-equal 2 (length sauces))
+      (assert-equal 0 (length desserts))
+      
+      (assert-equal "Basics" (recipe-category (car basics))))
+    
+    ;; Filter by difficulty
+    (let ((beginner (library 'list-by-difficulty 'beginner))
+          (intermediate (library 'list-by-difficulty 'intermediate))
+          (advanced (library 'list-by-difficulty 'advanced)))
+      
+      (assert-equal 2 (length beginner))
+      (assert-equal 1 (length intermediate))
+      (assert-equal 1 (length advanced))
+      
+      (assert-equal 'beginner (recipe-difficulty (car beginner))))))
+
+;; Test standard recipes
+(define-test test-standard-recipes
+  (let ((library (standard-recipes)))
+    (assert-true (> (length (library 'list)) 0))
+    
+    (let ((mirepoix (library 'get "Basic Mirepoix")))
+      (assert-equal "Basic Mirepoix" (recipe-name mirepoix))
+      (assert-equal "Basics" (recipe-category mirepoix))
+      (assert-equal 'beginner (recipe-difficulty mirepoix)))))
+
+;; Define test suite
+(define-test-suite library-tests
+  test-library-creation
+  test-add-recipe
+  test-get-recipe
+  test-filter-recipes
+  test-standard-recipes)
+#+END_SRC
+
+** Run All Tests
+
+#+BEGIN_SRC scheme :tangle scripts/run-tests.scm :mkdirp yes
+#!/usr/bin/env guile
+!#
+
+;;; run-tests.scm -- Run all tests for Cuisine Code
+;;; Copyright (c) 2025 Aidan Pace
+
+;; Add project root to load path
+(add-to-load-path ".")
+
+(use-modules (cuisine-code tests test-framework))
+
+;; Load all test modules
+(display "Loading test modules...\n")
+
+;; Core kitchen tests
+(load "scheme/tests/core/kitchen/stack-tests.scm")
+(load "scheme/tests/core/kitchen/kitchen-tests.scm")
+
+;; Core ingredient tests
+(load "scheme/tests/core/ingredients/ingredient-tests.scm")
+(load "scheme/tests/core/ingredients/store-tests.scm")
+
+;; Core transformation tests
+(load "scheme/tests/core/transformations/registry-tests.scm")
+
+;; Core recipe tests
+(load "scheme/tests/core/recipes/definition-tests.scm")
+(load "scheme/tests/core/recipes/execution-tests.scm")
+(load "scheme/tests/core/recipes/library-tests.scm")
+
+;; Define main test suite
+(define-test-suite all-tests
+  stack-tests
+  kitchen-tests
+  ingredient-tests
+  store-tests
+  registry-tests
+  definition-tests
+  execution-tests
+  library-tests)
+
+;; Run all tests
+(define (execute-test-suite)
+  (display "\nRunning all tests...\n")
+  (let ((result (run-test-suite 'all-tests)))
+    (if result
+        (begin
+          (display "\nAll tests passed!\n")
+          (exit 0))
+        (begin
+          (display "\nSome tests failed!\n")
+          (exit 1)))))
+
+;; Run tests if this script is the main program
+(if (eq? (current-module) (resolve-module '(guile-user)))
+    (execute-test-suite))
+#+END_SRC
+
+* Deployment
+** Docker Configuration
+
+#+BEGIN_SRC dockerfile :tangle Dockerfile :mkdirp yes
+# Cuisine Code Dockerfile
+# Copyright (c) 2025 Aidan Pace
+
+# Build stage
+FROM freebsd:14.0-RELEASE as builder
+
+# Install build dependencies
+RUN pkg update && pkg install -y \
+    guile3 \
+    emscripten \
+    node \
+    npm \
+    gmake \
+    git
+
+# Copy source code
+WORKDIR /app
+COPY . .
+
+# Build the project
+RUN gmake deps
+RUN gmake all
+
+# Runtime stage - API Server
+FROM freebsd:14.0-RELEASE as api
+
+# Install runtime dependencies
+RUN pkg update && pkg install -y \
+    guile3 \
+    nginx
+
+# Copy built files
+WORKDIR /app
+COPY --from=builder /app/scheme/src ./scheme/src
+COPY --from=builder /app/config ./config
+COPY --from=builder /app/scripts ./scripts
+
+# Expose API port
+EXPOSE 3000
+
+# Start API server
+CMD ["guile", "-L", ".", "-e", "main", "scheme/src/server/main.scm"]
+
+# Runtime stage - Web Server
+FROM nginx:alpine as web
+
+# Copy built web files
+COPY --from=builder /app/web/src /usr/share/nginx/html/
+COPY --from=builder /app/web/wasm /usr/share/nginx/html/wasm/
+COPY --from=builder /app/config/nginx.conf /etc/nginx/conf.d/default.conf
+
+# Expose web port
+EXPOSE 80
+
+# Start web server
+CMD ["nginx", "-g", "daemon off;"]
+#+END_SRC
+
+** NGINX Configuration
+
+#+BEGIN_SRC conf :tangle config/nginx.conf :mkdirp yes
+# Cuisine Code NGINX configuration
+# Copyright (c) 2025 Aidan Pace
+
+server {
+    listen 80;
+    server_name localhost;
+    
+    # Root directory for static files
+    root /usr/share/nginx/html;
+    index index.html;
+    
+    # Cache settings for static assets
+    location ~* \.(js|css|png|jpg|jpeg|gif|ico|svg|wasm)$ {
+        expires 30d;
+        add_header Cache-Control "public, no-transform";
+    }
+    
+    # API proxy
+    location /api/ {
+        proxy_pass http://api:3000/;
+        proxy_http_version 1.1;
+        proxy_set_header Upgrade $http_upgrade;
+        proxy_set_header Connection 'upgrade';
+        proxy_set_header Host $host;
+        proxy_cache_bypass $http_upgrade;
+    }
+    
+    # WebSocket proxy for collaborative features
+    location /ws/ {
+        proxy_pass http://api:3001/;
+        proxy_http_version 1.1;
+        proxy_set_header Upgrade $http_upgrade;
+        proxy_set_header Connection "Upgrade";
+        proxy_set_header Host $host;
+    }
+    
+    # Default route
+    location / {
+        try_files $uri $uri/ /index.html;
+    }
+}
+#+END_SRC
+
+** Docker Compose
+
+#+BEGIN_SRC yaml :tangle docker-compose.yml :mkdirp yes
+# Cuisine Code Docker Compose configuration
+# Copyright (c) 2025 Aidan Pace
+
+version: '3.8'
+
+services:
+  api:
+    build:
+      context: .
+      dockerfile: Dockerfile
+      target: api
+    container_name: cuisine-code-api
+    restart: unless-stopped
+    ports:
+      - "3000:3000"
+      - "3001:3001"
+    environment:
+      - NODE_ENV=production
+      - DB_HOST=db
+      - DB_PORT=5432
+      - DB_USER=cuisine
+      - DB_PASSWORD=cuisine_password
+      - DB_NAME=cuisine_code
+    depends_on:
+      - db
+    networks:
+      - cuisine_network
+    volumes:
+      - api_data:/app/data
+      
+  web:
+    build:
+      context: .
+      dockerfile: Dockerfile
+      target: web
+    container_name: cuisine-code-web
+    restart: unless-stopped
+    ports:
+      - "80:80"
+    depends_on:
+      - api
+    networks:
+      - cuisine_network
+      
+  db:
+    image: postgres:14-alpine
+    container_name: cuisine-code-db
+    restart: unless-stopped
+    environment:
+      - POSTGRES_USER=cuisine
+      - POSTGRES_PASSWORD=cuisine_password
+      - POSTGRES_DB=cuisine_code
+    ports:
+      - "5432:5432"
+    networks:
+      - cuisine_network
+    volumes:
+      - db_data:/var/lib/postgresql/data
+      
+  prometheus:
+    image: prom/prometheus:latest
+    container_name: cuisine-code-prometheus
+    restart: unless-stopped
+    ports:
+      - "9090:9090"
+    volumes:
+      - ./config/prometheus.yml:/etc/prometheus/prometheus.yml
+      - prometheus_data:/prometheus
+    networks:
+      - cuisine_network
+      
+  grafana:
+    image: grafana/grafana:latest
+    container_name: cuisine-code-grafana
+    restart: unless-stopped
+    ports:
+      - "3100:3000"
+    environment:
+      - GF_SECURITY_ADMIN_PASSWORD=cuisine_grafana
+    volumes:
+      - ./config/grafana/provisioning:/etc/grafana/provisioning
+      - grafana_data:/var/lib/grafana
+    depends_on:
+      - prometheus
+    networks:
+      - cuisine_network
+
+networks:
+  cuisine_network:
+    driver: bridge
+
+volumes:
+  api_data:
+  db_data:
+  prometheus_data:
+  grafana_data:
+#+END_SRC
+
+* CI/CD
+** GitHub Actions Workflow
+
+#+BEGIN_SRC yaml :tangle .github/workflows/main.yml :mkdirp yes
+# Cuisine Code CI/CD Workflow
+# Copyright (c) 2025 Aidan Pace
+
+name: Cuisine Code CI/CD
+
+on:
+  push:
+    branches: [ main ]
+  pull_request:
+    branches: [ main ]
+
+jobs:
+  test:
+    name: Run Tests
+    runs-on: ubuntu-latest
+    
+    steps:
+    - uses: actions/checkout@v4
+    
+    - name: Set up FreeBSD environment
+      uses: vmactions/freebsd-vm@v1
+      with:
+        release: '14.0'
+        usesh: true
+        prepare: |
+          pkg update
+          pkg install -y guile3 gmake git
+          
+    - name: Install dependencies
+      run: gmake deps
+      
+    - name: Run tests
+      run: gmake test
+  
+  build:
+    name: Build
+    needs: test
+    runs-on: ubuntu-latest
+    if: github.event_name == 'push' && github.ref == 'refs/heads/main'
+    
+    steps:
+    - uses: actions/checkout@v4
+    
+    - name: Set up FreeBSD environment
+      uses: vmactions/freebsd-vm@v1
+      with:
+        release: '14.0'
+        usesh: true
+        prepare: |
+          pkg update
+          pkg install -y guile3 emscripten node npm gmake git
+          
+    - name: Build project
+      run: gmake all
+      
+    - name: Upload build artifacts
+      uses: actions/upload-artifact@v4
+      with:
+        name: cuisine-code-build
+        path: |
+          web/
+          c-output/
+          
+  deploy:
+    name: Deploy
+    needs: build
+    runs-on: ubuntu-latest
+    if: github.event_name == 'push' && github.ref == 'refs/heads/main'
+    
+    steps:
+    - uses: actions/checkout@v4
+    
+    - name: Download build artifacts
+      uses: actions/download-artifact@v4
+      with:
+        name: cuisine-code-build
+        
+    - name: Set up Docker Buildx
+      uses: docker/setup-buildx-action@v2
+      
+    - name: Login to GitHub Container Registry
+      uses: docker/login-action@v2
+      with:
+        registry: ghcr.io
+        username: ${{ github.actor }}
+        password: ${{ secrets.GITHUB_TOKEN }}
+        
+    - name: Build and push Docker images
+      uses: docker/build-push-action@v4
+      with:
+        context: .
+        push: true
+        tags: |
+          ghcr.io/${{ github.repository }}/api:latest
+          ghcr.io/${{ github.repository }}/web:latest
+        platforms: linux/amd64,linux/arm64
+        
+    - name: Deploy to Production
+      uses: appleboy/ssh-action@master
+      with:
+        host: ${{ secrets.DEPLOY_HOST }}
+        username: ${{ secrets.DEPLOY_USERNAME }}
+        key: ${{ secrets.DEPLOY_KEY }}
+        script: |
+          cd /opt/cuisine-code
+          docker-compose pull
+          docker-compose up -d
+#+END_SRC
+
+** Terraform Infrastructure
+
+#+BEGIN_SRC terraform :tangle terraform/main.tf :mkdirp yes
+# Cuisine Code Terraform configuration
+# Copyright (c) 2025 Aidan Pace
+
+terraform {
+  required_providers {
+    digitalocean = {
+      source  = "digitalocean/digitalocean"
+      version = "~> 2.0"
+    }
+  }
+}
+
+provider "digitalocean" {
+  token = var.do_token
+}
+
+# Variables
+variable "do_token" {
+  description = "DigitalOcean API token"
+  type        = string
+}
+
+variable "region" {
+  description = "DigitalOcean region"
+  type        = string
+  default     = "nyc3"
+}
+
+variable "app_domain" {
+  description = "Domain for the application"
+  type        = string
+  default     = "cc.fx.net"
+}
+
+# Create VPC
+resource "digitalocean_vpc" "cuisine_vpc" {
+  name     = "cuisine-code-vpc"
+  region   = var.region
+  ip_range = "10.10.0.0/16"
+}
+
+# Create Droplets
+resource "digitalocean_droplet" "cuisine_app" {
+  count    = 2
+  name     = "cuisine-app-${count.index + 1}"
+  region   = var.region
+  vpc_uuid = digitalocean_vpc.cuisine_vpc.id
+  size     = "s-2vcpu-4gb"
+  image    = "freebsd-14-x64"
+  ssh_keys = [var.ssh_key_id]
+  
+  tags = ["app", "cuisine-code"]
+  
+  connection {
+    host        = self.ipv4_address
+    user        = "freebsd"
+    type        = "ssh"
+    private_key = file(var.ssh_private_key_path)
+  }
+  
+  provisioner "remote-exec" {
+    inline = [
+      "pkg update",
+      "pkg install -y docker docker-compose git",
+      "sysrc docker_enable=YES",
+      "service docker start",
+      "mkdir -p /opt/cuisine-code",
+    ]
+  }
+}
+
+# Create Database Cluster
+resource "digitalocean_database_cluster" "cuisine_db" {
+  name       = "cuisine-db-cluster"
+  engine     = "pg"
+  version    = "14"
+  size       = "db-s-1vcpu-2gb"
+  region     = var.region
+  node_count = 1
+  private_network_uuid = digitalocean_vpc.cuisine_vpc.id
+}
+
+resource "digitalocean_database_db" "cuisine_database" {
+  cluster_id = digitalocean_database_cluster.cuisine_db.id
+  name       = "cuisine_code"
+}
+
+resource "digitalocean_database_user" "cuisine_user" {
+  cluster_id = digitalocean_database_cluster.cuisine_db.id
+  name       = "cuisine"
+}
+
+# Create Load Balancer
+resource "digitalocean_loadbalancer" "cuisine_lb" {
+  name   = "cuisine-lb"
+  region = var.region
+  vpc_uuid = digitalocean_vpc.cuisine_vpc.id
+  
+  forwarding_rule {
+    entry_port     = 80
+    entry_protocol = "http"
+    target_port     = 80
+    target_protocol = "http"
+  }
+  
+  forwarding_rule {
+    entry_port     = 443
+    entry_protocol = "https"
+    target_port     = 80
+    target_protocol = "http"
+    certificate_id = digitalocean_certificate.cuisine_cert.id
+  }
+  
+  healthcheck {
+    port     = 80
+    protocol = "http"
+    path     = "/"
+  }
+  
+  droplet_ids = digitalocean_droplet.cuisine_app[*].id
+}
+
+# Create Domain and DNS Records
+resource "digitalocean_domain" "cuisine_domain" {
+  name = var.app_domain
+}
+
+resource "digitalocean_record" "cuisine_a" {
+  domain = digitalocean_domain.cuisine_domain.name
+  type   = "A"
+  name   = "@"
+  value  = digitalocean_loadbalancer.cuisine_lb.ip
+  ttl    = 300
+}
+
+resource "digitalocean_record" "cuisine_www" {
+  domain = digitalocean_domain.cuisine_domain.name
+  type   = "CNAME"
+  name   = "www"
+  value  = "@"
+  ttl    = 300
+}
+
+# Create SSL Certificate
+resource "digitalocean_certificate" "cuisine_cert" {
+  name    = "cuisine-cert"
+  type    = "lets_encrypt"
+  domains = [var.app_domain, "www.${var.app_domain}"]
+}
+
+# Project outputs
+output "app_url" {
+  value = "https://${var.app_domain}"
+}
+
+output "database_uri" {
+  value     = digitalocean_database_cluster.cuisine_db.uri
+  sensitive = true
+}
+
+output "lb_ip" {
+  value = digitalocean_loadbalancer.cuisine_lb.ip
+}
+#+END_SRC
+
+#+BEGIN_SRC terraform :tangle terraform/variables.tf :mkdirp yes
+# Cuisine Code Terraform variables
+# Copyright (c) 2025 Aidan Pace
+
+variable "do_token" {
+  description = "DigitalOcean API token"
+  type        = string
+}
+
+variable "ssh_key_id" {
+  description = "SSH key ID for DigitalOcean"
+  type        = string
+}
+
+variable "ssh_private_key_path" {
+  description = "Path to SSH private key"
+  type        = string
+  default     = "~/.ssh/id_rsa"
+}
+
+variable "region" {
+  description = "DigitalOcean region"
+  type        = string
+  default     = "nyc3"
+}
+
+variable "app_domain" {
+  description = "Domain for the application"
+  type        = string
+  default     = "cc.fx.net"
+}
+#+END_SRC
+
+* Monitoring
+** Prometheus Configuration
+
+#+BEGIN_SRC yaml :tangle config/prometheus.yml :mkdirp yes
+# Cuisine Code Prometheus configuration
+# Copyright (c) 2025 Aidan Pace
+
+global:
+  scrape_interval: 15s
+  evaluation_interval: 15s
+  scrape_timeout: 10s
+
+alerting:
+  alertmanagers:
+    - static_configs:
+        - targets: ['alertmanager:9093']
+
+rule_files:
+  - "/etc/prometheus/rules/*.yml"
+
+scrape_configs:
+  - job_name: 'prometheus'
+    static_configs:
+      - targets: ['localhost:9090']
+
+  - job_name: 'cuisine-api'
+    metrics_path: '/metrics'
+    static_configs:
+      - targets: ['api:3000']
+    
+  - job_name: 'node-exporter'
+    static_configs:
+      - targets: ['node-exporter:9100']
+    
+  - job_name: 'cadvisor'
+    static_configs:
+      - targets: ['cadvisor:8080']
+    
+  - job_name: 'postgres-exporter'
+    static_configs:
+      - targets: ['postgres-exporter:9187']
+#+END_SRC
+
+** Grafana Dashboards
+
+#+BEGIN_SRC json :tangle config/grafana/provisioning/dashboards/cuisine-code-overview.json :mkdirp yes
+{
+  "annotations": {
+    "list": [
+      {
+        "builtIn": 1,
+        "datasource": "-- Grafana --",
+        "enable": true,
+        "hide": true,
+        "iconColor": "rgba(0, 211, 255, 1)",
+        "name": "Annotations & Alerts",
+        "type": "dashboard"
+      }
+    ]
+  },
+  "editable": true,
+  "gnetId": null,
+  "graphTooltip": 0,
+  "id": 1,
+  "links": [],
+  "panels": [
+    {
+      "title": "API Server Health",
+      "type": "stat",
+      "datasource": "Prometheus",
+      "fieldConfig": {
+        "defaults": {
+          "mappings": [
+            {
+              "from": "0",
+              "id": 1,
+              "operator": "",
+              "text": "Down",
+              "to": "0.9",
+              "type": 2,
+              "value": "0"
+            },
+            {
+              "from": "1",
+              "id": 2,
+              "operator": "",
+              "text": "Up",
+              "to": "1",
+              "type": 2,
+              "value": "1"
+            }
+          ],
+          "thresholds": {
+            "mode": "absolute",
+            "steps": [
+              { "color": "red", "value": null },
+              { "color": "green", "value": 1 }
+            ]
+          }
+        }
+      },
+      "options": {
+        "colorMode": "value",
+        "graphMode": "none",
+        "justifyMode": "auto",
+        "orientation": "auto",
+        "reduceOptions": {
+          "calcs": ["lastNotNull"],
+          "fields": "",
+          "values": false
+        },
+        "textMode": "auto"
+      },
+      "targets": [
+        {
+          "expr": "up{job=\"cuisine-api\"}",
+          "interval": "",
+          "legendFormat": "",
+          "refId": "A"
+        }
+      ],
+      "gridPos": {
+        "h": 5,
+        "w": 4,
+        "x": 0,
+        "y": 0
+      }
+    },
+    {
+      "title": "API Requests Per Second",
+      "type": "timeseries",
+      "datasource": "Prometheus",
+      "fieldConfig": {
+        "defaults": {
+          "color": { "mode": "palette-classic" },
+          "custom": {
+            "axisLabel": "",
+            "axisPlacement": "auto",
+            "barAlignment": 0,
+            "drawStyle": "line",
+            "fillOpacity": 10,
+            "gradientMode": "none",
+            "hideFrom": {
+              "legend": false,
+              "tooltip": false,
+              "viz": false
+            },
+            "lineInterpolation": "smooth",
+            "lineWidth": 2,
+            "pointSize": 5,
+            "scaleDistribution": { "type": "linear" },
+            "showPoints": "never",
+            "spanNulls": true,
+            "stacking": { "group": "A", "mode": "none" },
+            "thresholdsStyle": { "mode": "off" }
+          },
+          "thresholds": {
+            "mode": "absolute",
+            "steps": [
+              { "color": "green", "value": null },
+              { "color": "red", "value": 80 }
+            ]
+          },
+          "unit": "reqps"
+        }
+      },
+      "options": {
+        "legend": { "displayMode": "list", "placement": "bottom" },
+        "tooltip": { "mode": "single" }
+      },
+      "targets": [
+        {
+          "expr": "sum(rate(http_requests_total{job=\"cuisine-api\"}[1m]))",
+          "interval": "",
+          "legendFormat": "Requests",
+          "refId": "A"
+        }
+      ],
+      "gridPos": {
+        "h": 8,
+        "w": 12,
+        "x": 4,
+        "y": 0
+      }
+    },
+    {
+      "title": "API Response Time",
+      "type": "timeseries",
+      "datasource": "Prometheus",
+      "fieldConfig": {
+        "defaults": {
+          "color": { "mode": "palette-classic" },
+          "custom": {
+            "axisLabel": "",
+            "axisPlacement": "auto",
+            "barAlignment": 0,
+            "drawStyle": "line",
+            "fillOpacity": 10,
+            "gradientMode": "none",
+            "hideFrom": {
+              "legend": false,
+              "tooltip": false,
+              "viz": false
+            },
+            "lineInterpolation": "smooth",
+            "lineWidth": 2,
+            "pointSize": 5,
+            "scaleDistribution": { "type": "linear" },
+            "showPoints": "never",
+            "spanNulls": true,
+            "stacking": { "group": "A", "mode": "none" },
+            "thresholdsStyle": { "mode": "off" }
+          },
+          "thresholds": {
+            "mode": "absolute",
+            "steps": [
+              { "color": "green", "value": null },
+              { "color": "red", "value": 500 }
+            ]
+          },
+          "unit": "ms"
+        }
+      },
+      "options": {
+        "legend": { "displayMode": "list", "placement": "bottom" },
+        "tooltip": { "mode": "single" }
+      },
+      "targets": [
+        {
+          "expr": "histogram_quantile(0.95, sum(rate(http_request_duration_seconds_bucket{job=\"cuisine-api\"}[5m])) by (le))",
+          "interval": "",
+          "legendFormat": "95th Percentile",
+          "refId": "A"
+        },
+        {
+          "expr": "histogram_quantile(0.50, sum(rate(http_request_duration_seconds_bucket{job=\"cuisine-api\"}[5m])) by (le))",
+          "interval": "",
+          "legendFormat": "Median",
+          "refId": "B"
+        }
+      ],
+      "gridPos": {
+        "h": 8,
+        "w": 12,
+        "x": 0,
+        "y": 8
+      }
+    },
+    {
+      "title": "HTTP Error Rate",
+      "type": "gauge",
+      "datasource": "Prometheus",
+      "fieldConfig": {
+        "defaults": {
+          "mappings": [],
+          "max": 5,
+          "min": 0,
+          "thresholds": {
+            "mode": "absolute",
+            "steps": [
+              { "color": "green", "value": null },
+              { "color": "yellow", "value": 0.5 },
+              { "color": "orange", "value": 1 },
+              { "color": "red", "value": 2 }
+            ]
+          },
+          "unit": "percent"
+        }
+      },
+      "options": {
+        "orientation": "auto",
+        "reduceOptions": {
+          "calcs": ["lastNotNull"],
+          "fields": "",
+          "values": false
+        },
+        "showThresholdLabels": false,
+        "showThresholdMarkers": true
+      },
+      "targets": [
+        {
+          "expr": "sum(rate(http_requests_total{job=\"cuisine-api\",status_code=~\"5..\"}[1m])) / sum(rate(http_requests_total{job=\"cuisine-api\"}[1m])) * 100",
+          "interval": "",
+          "legendFormat": "",
+          "refId": "A"
+        }
+      ],
+      "gridPos": {
+        "h": 8,
+        "w": 6,
+        "x": 12,
+        "y": 8
+      }
+    },
+    {
+      "title": "Database Connections",
+      "type": "timeseries",
+      "datasource": "Prometheus",
+      "fieldConfig": {
+        "defaults": {
+          "color": { "mode": "palette-classic" },
+          "custom": {
+            "axisLabel": "",
+            "axisPlacement": "auto",
+            "barAlignment": 0,
+            "drawStyle": "line",
+            "fillOpacity": 10,
+            "gradientMode": "none",
+            "hideFrom": {
+              "legend": false,
+              "tooltip": false,
+              "viz": false
+            },
+            "lineInterpolation": "linear",
+            "lineWidth": 2,
+            "pointSize": 5,
+            "scaleDistribution": { "type": "linear" },
+            "showPoints": "never",
+            "spanNulls": true,
+            "stacking": { "group": "A", "mode": "none" },
+            "thresholdsStyle": { "mode": "off" }
+          },
+          "thresholds": {
+            "mode": "absolute",
+            "steps": [
+              { "color": "green", "value": null },
+              { "color": "red", "value": 80 }
+            ]
+          }
+        }
+      },
+      "options": {
+        "legend": { "displayMode": "list", "placement": "bottom" },
+        "tooltip": { "mode": "single" }
+      },
+      "targets": [
+        {
+          "expr": "pg_stat_activity_count{job=\"postgres-exporter\",datname=\"cuisine_code\"}",
+          "interval": "",
+          "legendFormat": "Active Connections",
+          "refId": "A"
+        },
+        {
+          "expr": "pg_settings_max_connections{job=\"postgres-exporter\"}",
+          "interval": "",
+          "legendFormat": "Max Connections",
+          "refId": "B"
+        }
+      ],
+      "gridPos": {
+        "h": 8,
+        "w": 12,
+        "x": 0,
+        "y": 16
+      }
+    },
+    {
+      "title": "Node Resources",
+      "type": "timeseries",
+      "datasource": "Prometheus",
+      "fieldConfig": {
+        "defaults": {
+          "color": { "mode": "palette-classic" },
+          "custom": {
+            "axisLabel": "",
+            "axisPlacement": "auto",
+            "barAlignment": 0,
+            "drawStyle": "line",
+            "fillOpacity": 10,
+            "gradientMode": "none",
+            "hideFrom": {
+              "legend": false,
+              "tooltip": false,
+              "viz": false
+            },
+            "lineInterpolation": "linear",
+            "lineWidth": 2,
+            "pointSize": 5,
+            "scaleDistribution": { "type": "linear" },
+            "showPoints": "never",
+            "spanNulls": true,
+            "stacking": { "group": "A", "mode": "none" },
+            "thresholdsStyle": { "mode": "off" }
+          },
+          "thresholds": {
+            "mode": "absolute",
+            "steps": [
+              { "color": "green", "value": null },
+              { "color": "red", "value": 80 }
+            ]
+          },
+          "unit": "percent"
+        }
+      },
+      "options": {
+        "legend": { "displayMode": "list", "placement": "bottom" },
+        "tooltip": { "mode": "single" }
+      },
+      "targets": [
+        {
+          "expr": "100 - (avg by (instance) (irate(node_cpu_seconds_total{job=\"node-exporter\",mode=\"idle\"}[1m])) * 100)",
+          "interval": "",
+          "legendFormat": "CPU Usage - {{instance}}",
+          "refId": "A"
+        },
+        {
+          "expr": "100 * (1 - node_memory_MemAvailable_bytes{job=\"node-exporter\"} / node_memory_MemTotal_bytes{job=\"node-exporter\"})",
+          "interval": "",
+          "legendFormat": "Memory Usage - {{instance}}",
+          "refId": "B"
+        }
+      ],
+      "gridPos": {
+        "h": 8,
+        "w": 12,
+        "x": 12,
+        "y": 16
+      }
+    }
+  ],
+  "refresh": "10s",
+  "schemaVersion": 27,
+  "style": "dark",
+  "tags": ["cuisine-code"],
+  "templating": {
+    "list": []
+  },
+  "time": {
+    "from": "now-1h",
+    "to": "now"
+  },
+  "timepicker": {
+    "refresh_intervals": ["5s", "10s", "30s", "1m", "5m", "15m", "30m", "1h", "2h", "1d"]
+  },
+  "timezone": "",
+  "title": "Cuisine Code Overview",
+  "uid": "cuisine-overview",
+  "version": 1
+}
+#+END_SRC
+
+** Prometheus Alert Rules
+
+#+BEGIN_SRC yaml :tangle config/prometheus/rules/cuisine-alerts.yml :mkdirp yes
+# Cuisine Code alert rules
+# Copyright (c) 2025 Aidan Pace
+
+groups:
+  - name: cuisine-alerts
+    rules:
+      - alert: APIHighErrorRate
+        expr: sum(rate(http_requests_total{job="cuisine-api",status_code=~"5.."}[5m])) / sum(rate(http_requests_total{job="cuisine-api"}[5m])) > 0.05
+        for: 5m
+        labels:
+          severity: critical
+        annotations:
+          summary: "High API error rate"
+          description: "API error rate is above 5% for 5 minutes (current value: {{ $value | humanizePercentage }})"
+      
+      - alert: APIInstanceDown
+        expr: up{job="cuisine-api"} == 0
+        for: 1m
+        labels:
+          severity: critical
+        annotations:
+          summary: "API instance is down"
+          description: "API instance {{ $labels.instance }} has been down for more than 1 minute"
+      
+      - alert: APIHighResponseTime
+        expr: histogram_quantile(0.95, sum(rate(http_request_duration_seconds_bucket{job="cuisine-api"}[5m])) by (le)) > 0.5
+        for: 5m
+        labels:
+          severity: warning
+        annotations:
+          summary: "High API response time"
+          description: "95th percentile of API response time is above 500ms for 5 minutes (current value: {{ $value | humanizeDuration }})"
+      
+      - alert: DatabaseHighConnections
+        expr: pg_stat_activity_count{job="postgres-exporter",datname="cuisine_code"} > pg_settings_max_connections{job="postgres-exporter"} * 0.8
+        for: 5m
+        labels:
+          severity: warning
+        annotations:
+          summary: "High database connections"
+          description: "Database connections are above 80% of maximum for 5 minutes (current value: {{ $value }})"
+      
+      - alert: HighCPUUsage
+        expr: 100 - (avg by (instance) (irate(node_cpu_seconds_total{job="node-exporter",mode="idle"}[1m])) * 100) > 80
+        for: 5m
+        labels:
+          severity: warning
+        annotations:
+          summary: "High CPU usage"
+          description: "CPU usage on {{ $labels.instance }} is above 80% for 5 minutes (current value: {{ $value | humanizePercentage }})"
+      
+      - alert: HighMemoryUsage
+        expr: 100 * (1 - node_memory_MemAvailable_bytes{job="node-exporter"} / node_memory_MemTotal_bytes{job="node-exporter"}) > 80
+        for: 5m
+        labels:
+          severity: warning
+        annotations:
+          summary: "High memory usage"
+          description: "Memory usage on {{ $labels.instance }} is above 80% for 5 minutes (current value: {{ $value | humanizePercentage }})"
+      
+      - alert: HighDiskUsage
+        expr: 100 - ((node_filesystem_avail_bytes{job="node-exporter",fstype!="tmpfs"} * 100) / node_filesystem_size_bytes{job="node-exporter",fstype!="tmpfs"}) > 80
+        for: 5m
+        labels:
+          severity: warning
+        annotations:
+          summary: "High disk usage"
+          description: "Disk usage on {{ $labels.instance }} ({{ $labels.mountpoint }}) is above 80% for 5 minutes (current value: {{ $value | humanizePercentage }})"
+#+END_SRC
+
+* Runbooks
+** Incident Response
+
+#+BEGIN_SRC markdown :tangle docs/runbooks/incident-response.md :mkdirp yes
+# Cuisine Code Incident Response Runbook
+
+## Overview
+
+This runbook outlines the steps to follow during a production incident with the Cuisine Code application.
+
+## Incident Severity Levels
+
+- **SEV1**: Complete system outage or data loss
+- **SEV2**: Partial system outage or degraded performance affecting multiple users
+- **SEV3**: Minor issues affecting a small number of users
+- **SEV4**: Cosmetic issues with minimal impact
+
+## Incident Response Team
+
+- **Primary On-Call Engineer**: First responder
+- **Secondary On-Call Engineer**: Backup support
+- **Incident Commander**: Coordinates response for SEV1/SEV2
+- **Communications Lead**: Handles external communications
+- **Subject Matter Experts**: Called in as needed
+
+## Response Workflow
+
+### 1. Detection and Triage
+
+- **Alert Received**: Automated alert or user report
+- **Acknowledge Alert**: Acknowledge in PagerDuty/OpsGenie
+- **Initial Assessment**:
+  - Verify the issue exists
+  - Determine severity level
+  - Check monitoring dashboards
+  - Review recent changes
+
+### 2. Escalation (for SEV1/SEV2)
+
+- **Engage Incident Commander**
+- **Create Incident Channel**: #incident-{date}-{description}
+- **Notify Stakeholders**:
+  - Internal teams: Engineering, Product, Support
+  - External: Status page update
+
+### 3. Investigation
+
+- **Check System Status**:
+  - Database health: `make db-status`
+  - API health: `make api-status`
+  - Web server health: `make web-status`
+- **Review Logs**:
+  - Application logs: `make logs service=api`
+  - Database logs: `make logs service=db`
+  - Web server logs: `make logs service=web`
+- **Check Metrics**:
+  - CPU/Memory usage
+  - Request latency
+  - Error rates
+  - Database connections
+
+### 4. Mitigation
+
+- **Implement Quick Fixes**:
+  - Restart service: `make restart service=<service-name>`
+  - Scale up resources: `make scale service=<service-name> count=<number>`
+  - Enable maintenance mode: `make maintenance-mode enable`
+- **Roll Back Changes** (if applicable):
+  - Revert deployment: `make rollback version=<previous-version>`
+- **Apply Temporary Workarounds**:
+  - Feature flags: `make toggle feature=<feature-name> state=off`
+
+### 5. Resolution
+
+- **Verify Fix**:
+  - Run test suite: `make test`
+  - Manual verification
+  - Monitor metrics for stability
+- **Update Status**:
+  - Update incident status
+  - Notify stakeholders
+- **Document Actions Taken**
+
+### 6. Post-Incident
+
+- **Schedule Post-Mortem Meeting**
+- **Document Root Cause**
+- **Create Action Items**:
+  - Preventative measures
+  - Process improvements
+  - Monitoring enhancements
+
+## Common Issues and Resolutions
+
+### Database Connection Issues
+
+**Symptoms**:
+- `ConnectionError` in API logs
+- High latency in database-related operations
+
+**Investigation**:
+1. Check database status: `make db-status`
+2. Check connection pool metrics in Grafana
+3. Review recent database changes
+
+**Resolution**:
+1. Restart database if unresponsive: `make restart service=db`
+2. Check connection string configuration
+3. Verify network connectivity between API and database
+
+### High API Latency
+
+**Symptoms**:
+- Slow response times reported by users
+- Increase in response time metrics
+
+**Investigation**:
+1. Check API resource usage
+2. Review recent traffic patterns
+3. Check for slow database queries
+
+**Resolution**:
+1. Scale up API instances: `make scale service=api count=3`
+2. Enable caching if appropriate
+3. Optimize slow queries
+
+### Website Unavailable
+
+**Symptoms**:
+- 502/503 errors when accessing website
+- NGINX error logs showing issues
+
+**Investigation**:
+1. Check web server status: `make web-status`
+2. Verify API is functioning correctly
+3. Check load balancer health
+
+**Resolution**:
+1. Restart web service: `make restart service=web`
+2. Check NGINX configuration
+3. Verify SSL certificates are valid
+
+## Contact Information
+
+- **Primary On-Call**: +1-555-0123 (24/7)
+- **Secondary On-Call**: +1-555-0124 (24/7)
+- **Engineering Manager**: +1-555-0125 (Business hours)
+
+## Useful Commands
+
+```bash
+# View logs for a service
+make logs service=<api|web|db>
+
+# Restart a service
+make restart service=<api|web|db>
+
+# Scale a service
+make scale service=<api|web> count=<number>
+
+# Check service status
+make status service=<api|web|db>
+
+# Enable/disable maintenance mode
+make maintenance-mode <enable|disable>
+
+# Rollback to previous version
+make rollback version=<version>
+```
+
+## Related Documentation
+
+- [System Architecture](../architecture.md)
+- [Database Schema](../database.md)
+- [Monitoring Setup](../monitoring.md)
+- [Deployment Process](../deployment.md)
+#+END_SRC
+
+** Deployment Runbook
+
+#+BEGIN_SRC markdown :tangle docs/runbooks/deployment.md :mkdirp yes
+# Cuisine Code Deployment Runbook
+
+## Overview
+
+This runbook details the process for deploying the Cuisine Code application to production.
+
+## Pre-Deployment Checklist
+
+- [ ] All tests passing on CI
+- [ ] Code review completed
+- [ ] Documentation updated
+- [ ] Security review completed (for major releases)
+- [ ] Database migration scripts tested
+- [ ] Monitoring and alerting verified
+- [ ] Rollback plan prepared
+
+## Deployment Window
+
+- **Standard Deployments**: Monday-Thursday, 10:00-14:00 ET
+- **Emergency Fixes**: Any time, with proper approval
+- **Blackout Periods**: Check the deployment calendar for holidays and freeze periods
+
+## Deployment Process
+
+### 1. Preparation
+
+- **Create Deployment Ticket**:
+  ```
+  Title: Deploy Cuisine Code v{VERSION} to Production
+  Description: 
+  - Version: v{VERSION}
+  - Key Changes: {SUMMARY OF CHANGES}
+  - Risk Assessment: {LOW|MEDIUM|HIGH}
+  - Rollback Plan: {ROLLBACK STEPS}
+  ```
+
+- **Notify Stakeholders**:
+  - Engineering team in #engineering channel
+  - Product team in #product channel
+  - Support team in #support channel
+
+- **Verify Build Artifacts**:
+  - Check that all artifacts are properly built and tagged
+  - Verify checksums of Docker images
+
+### 2. Database Migrations
+
+- **Create Backup**:
+  ```bash
+  make db-backup env=production
+  ```
+
+- **Apply Migrations**:
+  ```bash
+  make db-migrate env=production
+  ```
+
+- **Verify Migration Success**:
+  ```bash
+  make db-status env=production
+  ```
+
+### 3. Application Deployment
+
+- **Deploy to Production**:
+  ```bash
+  make deploy env=production version={VERSION}
+  ```
+
+- **Monitor Deployment Progress**:
+  - Watch deployment logs
+  - Monitor error rates in Grafana
+  - Check health endpoints
+
+### 4. Verification
+
+- **Smoke Tests**:
+  ```bash
+  make test-smoke env=production
+  ```
+
+- **Verify Critical Flows**:
+  - User authentication
+  - Recipe creation
+  - Kitchen operations
+  - Collaborative features (v4.0+)
+
+- **Monitor Performance**:
+  - Response times
+  - Database load
+  - Memory usage
+  - CPU utilization
+
+### 5. Post-Deployment
+
+- **Update Deployment Ticket**:
+  - Mark as completed
+  - Include deployment timestamp
+  - Document any issues encountered
+
+- **Notify Stakeholders**:
+  - Announce successful deployment
+  - Highlight any known issues or changes in behavior
+
+- **Monitor for Issues**:
+  - Watch error rates for next 24 hours
+  - Monitor support channels for user-reported issues
+
+## Rollback Procedure
+
+If critical issues are encountered after deployment, follow these steps to rollback:
+
+### 1. Decision to Rollback
+
+- **Criteria for Rollback**:
+  - Critical functionality broken
+  - Data integrity issues
+  - Significant performance degradation
+  - Security vulnerability
+
+- **Approval Process**:
+  - SEV1/SEV2 incidents: On-call engineer can initiate rollback
+  - SEV3/SEV4 issues: Engineering manager approval required
+
+### 2. Rollback Steps
+
+- **Rollback Application**:
+  ```bash
+  make rollback env=production version={PREVIOUS_VERSION}
+  ```
+
+- **Rollback Database** (if needed):
+  ```bash
+  make db-rollback env=production version={PREVIOUS_VERSION}
+  ```
+
+- **Verify Rollback Success**:
+  - Run smoke tests
+  - Verify critical flows
+  - Monitor error rates
+
+### 3. Post-Rollback
+
+- **Update Deployment Ticket**:
+  - Document rollback reason
+  - Include timestamp and version rolled back to
+
+- **Notify Stakeholders**:
+  - Announce rollback and reason
+  - Provide ETA for fix if available
+
+## Canary Deployments (v2.0+)
+
+For versions 2.0 and above, canary deployments are supported:
+
+### 1. Deploy to Canary
+
+```bash
+make deploy-canary env=production version={VERSION} percentage=10
+```
+
+### 2. Monitor Canary
+
+- Watch error rates and performance metrics
+- Compare with baseline metrics
+- Gradually increase traffic percentage if stable
+
+### 3. Complete Deployment
+
+```bash
+make deploy-complete env=production version={VERSION}
+```
+
+## Special Considerations
+
+### Configuration Updates
+
+- **Update Environment Variables**:
+  ```bash
+  make config-update env=production file=config/production.env
+  ```
+
+- **Update Feature Flags**:
+  ```bash
+  make toggle feature={FEATURE_NAME} state={on|off} env=production
+  ```
+
+### Infrastructure Updates
+
+For infrastructure changes (Terraform):
+
+```bash
+cd terraform
+terraform plan -out=plan.tfplan
+# Review plan
+terraform apply plan.tfplan
+```
+
+## Deployment Scripts Reference
+
+```bash
+# Standard deployment
+make deploy env=production version={VERSION}
+
+# Canary deployment
+make deploy-canary env=production version={VERSION} percentage={PERCENTAGE}
+
+# Complete canary deployment
+make deploy-complete env=production version={VERSION}
+
+# Rollback deployment
+make rollback env=production version={PREVIOUS_VERSION}
+
+# Database migration
+make db-migrate env=production
+
+# Database rollback
+make db-rollback env=production version={PREVIOUS_VERSION}
+
+# Check deployment status
+make deployment-status env=production
+
+# Run smoke tests
+make test-smoke env=production
+```
+
+## Troubleshooting Common Issues
+
+### Deployment Timeouts
+
+If deployment times out:
+
+1. Check resource availability
+2. Verify network connectivity
+3. Check for stuck containers or processes
+4. Use manual intervention if needed:
+   ```bash
+   make deployment-debug env=production
+   ```
+
+### Database Migration Failures
+
+If migrations fail:
+
+1. Review migration logs
+2. Use automated rollback
+3. If automated rollback fails, restore from backup:
+   ```bash
+   make db-restore env=production
+make db-restore env=production backup={BACKUP_NAME}
+   ```
+
+### Service Health Issues
+
+If services aren't starting properly:
+
+1. Check for resource constraints
+2. Verify configuration is correct
+3. Check dependent services
+4. Review latest logs:
+   ```bash
+   make logs service={SERVICE_NAME} env=production lines=100
+   ```
+
+## Related Documentation
+
+- [CI/CD Pipeline](../ci-cd.md)
+- [Monitoring Guide](../monitoring.md)
+- [Database Management](../database.md)
+- [Infrastructure as Code](../infrastructure.md)
+#+END_SRC
+
+** Database Management Runbook
+
+#+BEGIN_SRC markdown :tangle docs/runbooks/database.md :mkdirp yes
+# Cuisine Code Database Management Runbook
+
+## Overview
+
+This runbook covers database operations, maintenance, and troubleshooting for the Cuisine Code PostgreSQL database.
+
+## Database Architecture
+
+- **Primary Database**: Production database cluster
+- **Read Replicas**: For reporting and high-read operations
+- **Backup Storage**: Off-site encrypted backups
+- **Database Version**: PostgreSQL 14.x
+
+## Regular Maintenance Tasks
+
+### Daily Maintenance
+
+- **Automated Backups**:
+  - Full backups run daily at 01:00 UTC
+  - Transaction logs backed up every 15 minutes
+  - Retention: 7 daily, 4 weekly, 12 monthly
+
+- **Monitoring Checks**:
+  - Connection pool usage
+  - Transaction volume
+  - Query performance
+  - Storage utilization
+
+### Weekly Maintenance
+
+- **Index Maintenance**:
+  - Run index analysis: `make db-analyze env=production`
+  - Review index usage statistics
+  - Implement recommended indexes
+
+- **Query Performance Review**:
+  - Identify slow queries: `make db-slow-queries env=production`
+  - Tune problematic queries
+  - Update query patterns if needed
+
+### Monthly Maintenance
+
+- **Storage Management**:
+  - Review growth patterns
+  - Plan capacity increases if needed
+  - Archive old data if applicable
+
+- **Security Audit**:
+  - Review user permissions
+  - Audit connection patterns
+  - Check for unusual activity
+
+## Backup and Recovery
+
+### Creating Manual Backups
+
+```bash
+# Create a full backup
+make db-backup env=production type=full
+
+# Create a schema-only backup
+make db-backup env=production type=schema
+
+# Create a data-only backup
+make db-backup env=production type=data
+
+# Create a backup of specific tables
+make db-backup env=production type=tables tables=users,recipes
+```
+
+### Restoring from Backups
+
+```bash
+# Full restore (requires downtime)
+make db-maintenance-mode enable
+make db-restore env=production backup={BACKUP_NAME}
+make db-maintenance-mode disable
+
+# Restore specific tables
+make db-restore-tables env=production backup={BACKUP_NAME} tables=users,recipes
+
+# Restore to development environment
+make db-restore env=development backup={BACKUP_NAME}
+```
+
+### Verifying Backups
+
+```bash
+# Verify backup integrity
+make db-verify-backup backup={BACKUP_NAME}
+
+# Test restore to staging
+make db-test-restore env=staging backup={BACKUP_NAME}
+```
+
+## Database Migrations
+
+### Creating Migrations
+
+1. Create a new migration file:
+   ```bash
+   make db-create-migration name=add_user_preferences
+   ```
+
+2. Edit the migration file in `db/migrations/YYYYMMDDHHMMSS_add_user_preferences.sql`
+
+3. Test the migration locally:
+   ```bash
+   make db-migrate env=development
+   ```
+
+### Deploying Migrations
+
+1. Run migrations in staging:
+   ```bash
+   make db-migrate env=staging
+   ```
+
+2. Verify application functionality with new schema
+
+3. Run migrations in production (during deployment):
+   ```bash
+   make db-migrate env=production
+   ```
+
+### Rolling Back Migrations
+
+```bash
+# Roll back the last migration
+make db-rollback env=production steps=1
+
+# Roll back to a specific version
+make db-rollback env=production version=20250315120000
+```
+
+## Performance Tuning
+
+### Configuration Management
+
+Update database parameters:
+
+```bash
+# View current configuration
+make db-show-config env=production
+
+# Update configuration
+make db-update-config env=production param=max_connections value=200
+```
+
+Common optimization parameters:
+
+- `shared_buffers`: 25% of total RAM
+- `effective_cache_size`: 75% of total RAM
+- `work_mem`: 32-64MB per connection
+- `maintenance_work_mem`: 256MB
+- `random_page_cost`: 1.1 for SSD, 4.0 for HDD
+- `effective_io_concurrency`: 200 for SSD, 2 for HDD
+
+### Index Management
+
+```bash
+# Analyze table and recommend indexes
+make db-analyze-table env=production table=recipes
+
+# Create index
+make db-create-index env=production table=recipes columns=user_id,created_at
+
+# Remove unused indexes
+make db-remove-unused-indexes env=production
+```
+
+### Query Optimization
+
+1. Identify slow queries:
+   ```bash
+   make db-slow-queries env=production
+   ```
+
+2. Explain a specific query:
+   ```bash
+   make db-explain query="SELECT * FROM recipes WHERE user_id = 123"
+   ```
+
+3. Update application code to optimize query patterns
+
+## Troubleshooting
+
+### High Connection Usage
+
+If database connections are near limit:
+
+1. Check for connection leaks in application
+2. Adjust connection pool settings
+3. Consider increasing `max_connections` (requires restart)
+4. Use connection pooling middleware (PgBouncer)
+
+### Slow Queries
+
+For consistently slow queries:
+
+1. Run EXPLAIN ANALYZE on the query
+2. Check for missing indexes
+3. Verify statistics are up to date: `VACUUM ANALYZE table_name`
+4. Consider query rewriting or application-level caching
+
+### Database Locks
+
+For lock contention issues:
+
+1. Identify blocking queries:
+   ```bash
+   make db-show-locks env=production
+   ```
+
+2. Terminate blocking queries if necessary:
+   ```bash
+   make db-terminate-query env=production pid=12345
+   ```
+
+3. Review application transaction patterns
+
+### Disk Space Issues
+
+If running low on disk space:
+
+1. Check database size:
+   ```bash
+   make db-size env=production
+   ```
+
+2. Identify large tables and indexes:
+   ```bash
+   make db-table-sizes env=production
+   ```
+
+3. Consider emergency actions:
+   - Remove unneeded indexes
+   - Archive old data
+   - Increase storage allocation
+
+## Security Management
+
+### User Management
+
+```bash
+# Create a new database user
+make db-create-user env=production username=reports password=secure_password
+
+# Update user password
+make db-update-password env=production username=reports
+
+# Grant permissions
+make db-grant-permission env=production username=reports permission=SELECT tables=ALL
+```
+
+### Audit and Compliance
+
+```bash
+# Enable audit logging
+make db-enable-audit env=production
+
+# Generate audit report
+make db-audit-report env=production start=2025-03-01 end=2025-03-31
+
+# Check for security best practices
+make db-security-check env=production
+```
+
+## Disaster Recovery
+
+### Complete Database Failure
+
+1. Initiate incident response:
+   ```bash
+   make incident-create severity=1 description="Database failure"
+   ```
+
+2. Enable maintenance mode:
+   ```bash
+   make maintenance-mode enable reason="Database restoration in progress"
+   ```
+
+3. Restore from latest backup:
+   ```bash
+   make db-restore env=production backup=latest
+   ```
+
+4. Apply transaction logs:
+   ```bash
+   make db-apply-logs env=production
+   ```
+
+5. Verify data integrity:
+   ```bash
+   make db-verify-integrity env=production
+   ```
+
+6. Resume service:
+   ```bash
+   make maintenance-mode disable
+   ```
+
+### Corruption Recovery
+
+1. Identify corrupted tables:
+   ```bash
+   make db-check-corruption env=production
+   ```
+
+2. Restore affected tables:
+   ```bash
+   make db-restore-tables env=production backup=latest tables=affected_table1,affected_table2
+   ```
+
+3. Verify recovery:
+   ```bash
+   make db-verify-tables env=production tables=affected_table1,affected_table2
+   ```
+
+## Database Schema Reference
+
+Key tables and relationships:
+
+- `users`: User accounts and profiles
+- `ingredients`: Ingredient definitions
+- `transformations`: Cooking transformation definitions
+- `recipes`: Recipe definitions
+- `recipe_steps`: Individual steps in recipes
+- `kitchens`: User kitchen configurations
+- `executions`: Recipe execution history
+
+Full schema documentation available in [Database Schema](../database-schema.md)
+
+## Related Documentation
+
+- [Database Schema](../database-schema.md)
+- [Backup Policy](../backup-policy.md)
+- [Production Database Setup](../production-db-setup.md)
+- [Database Scaling Guide](../database-scaling.md)
+#+END_SRC
+
+** Monitoring Runbook
+
+#+BEGIN_SRC markdown :tangle docs/runbooks/monitoring.md :mkdirp yes
+# Cuisine Code Monitoring Runbook
+
+## Overview
+
+This runbook details the monitoring setup, alert management, and observability practices for the Cuisine Code application.
+
+## Monitoring Architecture
+
+- **Metrics Collection**: Prometheus
+- **Visualization**: Grafana
+- **Log Management**: ELK Stack (Elasticsearch, Logstash, Kibana)
+- **Alert Management**: Alertmanager + PagerDuty
+- **Distributed Tracing**: Jaeger
+
+## Key Metrics
+
+### Application Metrics
+
+- **Request Rate**: Requests per second
+- **Error Rate**: Percentage of 4xx/5xx responses
+- **Latency**: P50, P95, P99 response times
+- **Active Users**: Currently active kitchen sessions
+- **Recipe Executions**: Rate of recipe executions
+
+### System Metrics
+
+- **CPU Usage**: Per service and host
+- **Memory Usage**: Per service and host
+- **Disk Usage**: Storage utilization
+- **Network Traffic**: Bytes in/out
+- **Connection Pool**: Database connection utilization
+
+### Database Metrics
+
+- **Query Latency**: P50, P95, P99 query times
+- **Connection Count**: Active and idle connections
+- **Transaction Rate**: Transactions per second
+- **Index Usage**: Hit rate for indexes
+- **Cache Efficiency**: Buffer cache hit ratio
+
+## Dashboards
+
+### Main Dashboards
+
+1. **Service Overview**: High-level health of all services
+   - URL: https://grafana.cuisinecode.com/d/overview
+   - Refresh: 1m
+
+2. **API Performance**: Detailed API metrics
+   - URL: https://grafana.cuisinecode.com/d/api
+   - Refresh: 30s
+
+3. **Database Performance**: Database metrics and query stats
+   - URL: https://grafana.cuisinecode.com/d/database
+   - Refresh: 1m
+
+4. **Infrastructure**: Host-level metrics
+   - URL: https://grafana.cuisinecode.com/d/infrastructure
+   - Refresh: 5m
+
+5. **User Experience**: User-facing performance metrics
+   - URL: https://grafana.cuisinecode.com/d/users
+   - Refresh: 1m
+
+### Creating Custom Dashboards
+
+1. Use the Dashboard Template:
+   ```bash
+   make dashboard-create name="Custom Dashboard" template=service
+   ```
+
+2. Access the new dashboard in Grafana
+
+3. Save dashboard JSON to repository:
+   ```bash
+   make dashboard-export dashboard_id=custom-dashboard
+   ```
+
+## Alerts
+
+### Alert Severity Levels
+
+- **Critical**: Immediate action required, service outage
+- **Warning**: Potential issue requiring investigation
+- **Info**: Noteworthy event, no immediate action needed
+
+### Common Alerts
+
+#### API Alerts
+
+- **APIHighErrorRate**: Error rate exceeds 5% for 5 minutes
+- **APIInstanceDown**: API service instance is down
+- **APIHighLatency**: P95 latency exceeds 500ms for 5 minutes
+
+#### Database Alerts
+
+- **DBHighConnections**: Connection pool above 80% for 5 minutes
+- **DBSlowQueries**: Increase in slow queries
+- **DBHighReplicationLag**: Replication lag exceeds 1 minute
+
+#### Infrastructure Alerts
+
+- **HighCPUUsage**: CPU usage above 80% for 5 minutes
+- **HighMemoryUsage**: Memory usage above 80% for 5 minutes
+- **DiskSpaceLow**: Disk usage above 85%
+
+### Managing Alerts
+
+#### Silencing Alerts
+
+```bash
+# Silence an alert for 2 hours
+make alert-silence alertname=APIHighErrorRate duration=2h reason="Known issue, being investigated"
+
+# View current silences
+make alert-silences
+
+# Remove a silence
+make alert-unsilence silence_id=abc123
+```
+
+#### Adjusting Alert Thresholds
+
+```bash
+# Update alert threshold
+make alert-update alertname=APIHighErrorRate threshold=0.1 duration=10m
+
+# Disable an alert
+make alert-disable alertname=APIHighLatency
+
+# Enable an alert
+make alert-enable alertname=APIHighLatency
+```
+
+## Log Management
+
+### Accessing Logs
+
+```bash
+# View real-time logs for a service
+make logs service=api env=production
+
+# Search logs for specific terms
+make logs-search term="error" service=api env=production timeframe=1h
+
+# Export logs to file
+make logs-export service=api env=production timeframe=6h output=api-logs.json
+```
+
+### Log Retention Policies
+
+- **Production Logs**: 30 days
+- **Staging Logs**: 14 days
+- **Development Logs**: 7 days
+
+### Creating Log Alerts
+
+1. Create alert definition:
+   ```bash
+   make log-alert-create name="Database Errors" pattern="database connection failed" threshold=5 window=5m
+   ```
+
+2. Test the alert:
+   ```bash
+   make log-alert-test name="Database Errors"
+   ```
+
+3. Enable the alert:
+   ```bash
+   make log-alert-enable name="Database Errors"
+   ```
+
+## Distributed Tracing
+
+### Accessing Traces
+
+1. Open Jaeger UI: https://jaeger.cuisinecode.com
+
+2. Search for traces:
+   - By trace ID
+   - By service
+   - By operation
+   - By duration
+   - By tags
+
+3. Export traces for analysis:
+   ```bash
+   make trace-export trace_id=abc123
+   ```
+
+### Analyzing Performance Issues
+
+1. Identify slow endpoints from Grafana dashboards
+
+2. Find corresponding traces in Jaeger
+
+3. Analyze span durations to pinpoint bottlenecks
+
+4. Check for error tags and logs within spans
+
+5. Compare with baseline performance
+
+## Health Checks
+
+### Endpoint Reference
+
+- API Health: https://api.cuisinecode.com/health
+- Web Health: https://cc.fx.net/health
+- Database Health: Internal (via metrics)
+
+### Manual Health Check
+
+```bash
+# Run comprehensive health check
+make health-check env=production
+
+# Check specific service
+make health-check service=api env=production
+```
+
+### Synthetic Monitoring
+
+Uptime checks run every minute from multiple regions:
+
+- Homepage: https://cc.fx.net
+- API: https://api.cuisinecode.com/health
+- Critical flows (every 5 minutes)
+
+## Capacity Planning
+
+### Monitoring Resource Usage
+
+```bash
+# Generate capacity report
+make capacity-report timeframe=30d
+
+# Forecast resource needs
+make capacity-forecast months=3
+```
+
+### Scaling Guidelines
+
+- **CPU Consistently >70%**: Scale horizontally or vertically
+- **Memory Consistently >75%**: Increase memory allocation
+- **Database Connections >70%**: Increase connection pool or add read replicas
+- **Disk Usage >80%**: Increase storage or implement archiving
+
+## Troubleshooting
+
+### Performance Issues
+
+1. Check Grafana dashboards for anomalies
+2. Review recent deployments or changes
+3. Analyze traces for slow operations
+4. Check resource utilization
+5. Review logs for errors
+6. Check database query performance
+
+### Alert Storms
+
+1. Identify root alert triggering cascade
+2. Silence secondary alerts
+3. Focus on resolving primary issue
+4. Document relationship for future prevention
+
+### False Positives
+
+1. Document the false positive
+2. Adjust alert thresholds or conditions
+3. Add additional context to alert description
+4. Consider implementing better detection logic
+
+## Related Documentation
+
+- [Monitoring Architecture](../monitoring-architecture.md)
+- [Alert Reference](../alert-reference.md)
+- [Dashboard Guide](../dashboard-guide.md)
+- [Log Format Specification](../log-format.md)
+#+END_SRC
+
+* Website Configuration
+** Product Website
+
+#+BEGIN_SRC html :tangle web/src/index.html :mkdirp yes
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Cuisine Code - Learn Computing Through French Cooking</title>
+  <link rel="stylesheet" href="css/base/reset.css">
+  <link rel="stylesheet" href="css/base/typography.css">
+  <link rel="stylesheet" href="css/components/header.css">
+  <link rel="stylesheet" href="css/components/footer.css">
+  <link rel="stylesheet" href="css/components/buttons.css">
+  <link rel="stylesheet" href="css/components/cards.css">
+  <link rel="stylesheet" href="css/themes/light.css" id="theme-stylesheet">
+  <script src="js/theme-switcher.js" defer></script>
+</head>
+<body>
+  <header class="site-header">
+    <div class="container">
+      <div class="header-left">
+        <a href="/" class="logo">
+          <img src="assets/images/cuisine-code-logo.svg" alt="Cuisine Code Logo">
+        </a>
+      </div>
+      <nav class="main-navigation">
+        <ul>
+          <li><a href="/#features">Features</a></li>
+          <li><a href="/#how-it-works">How It Works</a></li>
+          <li><a href="/documentation">Documentation</a></li>
+          <li><a href="/blog">Blog</a></li>
+          <li><a href="/community">Community</a></li>
+        </ul>
+      </nav>
+      <div class="header-right">
+        <a href="/login" class="button button-secondary">Log In</a>
+        <a href="/signup" class="button button-primary">Get Started</a>
+        <button id="theme-toggle" aria-label="Toggle dark mode">
+          <svg class="theme-icon" aria-hidden="true"></svg>
+        </button>
+      </div>
+    </div>
+  </header>
+
+  <main>
+    <section class="hero">
+      <div class="container">
+        <div class="hero-content">
+          <h1>Learn Stack-Based Computing Through French Cooking</h1>
+          <p class="hero-subtitle">Master programming concepts with the familiar metaphors of French cuisine.</p>
+          <div class="hero-buttons">
+            <a href="/signup" class="button button-large button-primary">Start Cooking</a>
+            <a href="/demo" class="button button-large button-secondary">Try Demo</a>
+          </div>
+        </div>
+        <div class="hero-illustration">
+          <img src="assets/images/kitchen-illustration.svg" alt="Cuisine Code Kitchen Illustration">
+        </div>
+      </div>
+    </section>
+
+    <section id="features" class="features">
+      <div class="container">
+        <h2 class="section-title">Key Features</h2>
+        <div class="feature-grid">
+          <div class="feature-card">
+            <div class="feature-icon">
+              <img src="assets/icons/stack.svg" alt="Stack Icon">
+            </div>
+            <h3>Stack-Based Operations</h3>
+            <p>Learn fundamental computing concepts through intuitive cooking stack operations.</p>
+          </div>
+          <div class="feature-card">
+            <div class="feature-icon">
+              <img src="assets/icons/french-cuisine.svg" alt="French Cuisine Icon">
+            </div>
+            <h3>Authentic French Techniques</h3>
+            <p>Master classic culinary techniques from mirepoix to mother sauces.</p>
+          </div>
+          <div class="feature-card">
+            <div class="feature-icon">
+              <img src="assets/icons/visualization.svg" alt="Visualization Icon">
+            </div>
+            <h3>Visual Feedback</h3>
+            <p>See your stack operations through beautiful culinary visualizations.</p>
+          </div>
+          <div class="feature-card">
+            <div class="feature-icon">
+              <img src="assets/icons/progression.svg" alt="Progression Icon">
+            </div>
+            <h3>Progressive Learning</h3>
+            <p>Advance from simple preparations to complex recipes and algorithms.</p>
+          </div>
+          <div class="feature-card">
+            <div class="feature-icon">
+              <img src="assets/icons/social.svg" alt="Social Icon">
+            </div>
+            <h3>Social Cooking</h3>
+            <p>Share recipes and cook collaboratively with friends.</p>
+          </div>
+          <div class="feature-card">
+            <div class="feature-icon">
+              <img src="assets/icons/cross-platform.svg" alt="Cross Platform Icon">
+            </div>
+            <h3>Cross-Platform</h3>
+            <p>Play in your terminal or browser on any device.</p>
+          </div>
+        </div>
+      </div>
+    </section>
+
+    <section id="how-it-works" class="how-it-works">
+      <div class="container">
+        <h2 class="section-title">How It Works</h2>
+        <div class="steps">
+          <div class="step">
+            <div class="step-number">1</div>
+            <h3>Push Ingredients</h3>
+            <p>Add ingredients to your kitchen stack, just like pushing values in computing.</p>
+            <div class="step-illustration">
+              <img src="assets/images/step1-push.svg" alt="Push Ingredients Illustration">
+            </div>
+          </div>
+          <div class="step">
+            <div class="step-number">2</div>
+            <h3>Apply Transformations</h3>
+            <p>Transform your ingredients using French culinary techniques, analogous to functions in programming.</p>
+            <div class="step-illustration">
+              <img src="assets/images/step2-transform.svg" alt="Apply Transformations Illustration">
+            </div>
+          </div>
+          <div class="step">
+            <div class="step-number">3</div>
+            <h3>Create Recipes</h3>
+            <p>Combine operations into recipes, similar to algorithms in computer science.</p>
+            <div class="step-illustration">
+              <img src="assets/images/step3-recipes.svg" alt="Create Recipes Illustration">
+            </div>
+          </div>
+          <div class="step">
+            <div class="step-number">4</div>
+            <h3>Master Computing Concepts</h3>
+            <p>Learn programming patterns through familiar culinary metaphors.</p>
+            <div class="step-illustration">
+              <img src="assets/images/step4-learn.svg" alt="Master Computing Concepts Illustration">
+            </div>
+          </div>
+        </div>
+      </div>
+    </section>
+
+    <section class="testimonials">
+      <div class="container">
+        <h2 class="section-title">What Our Users Say</h2>
+        <div class="testimonial-slider">
+          <div class="testimonial">
+            <div class="testimonial-content">
+              <p>"Cuisine Code made stack-based programming click for me in a way that traditional tutorials never did. The French culinary metaphors are brilliant!"</p>
+            </div>
+            <div class="testimonial-author">
+              <img src="assets/images/testimonial-1.jpg" alt="Sarah J., Computer Science Student">
+              <div>
+                <h4>Sarah J.</h4>
+                <p>Computer Science Student</p>
+              </div>
+            </div>
+          </div>
+          <div class="testimonial">
+            <div class="testimonial-content">
+              <p>"As both a chef and a programming enthusiast, Cuisine Code is the perfect intersection of my passions. I use it to teach computing concepts to my culinary students."</p>
+            </div>
+            <div class="testimonial-author">
+              <img src="assets/images/testimonial-2.jpg" alt="Michel P., Culinary Instructor">
+              <div>
+                <h4>Michel P.</h4>
+                <p>Culinary Instructor</p>
+              </div>
+            </div>
+          </div>
+          <div class="testimonial">
+            <div class="testimonial-content">
+              <p>"The visual feedback and progressive difficulty make learning abstract computing concepts accessible and fun. My children love it!"</p>
+            </div>
+            <div class="testimonial-author">
+              <img src="assets/images/testimonial-3.jpg" alt="David T., Parent & Software Engineer">
+              <div>
+                <h4>David T.</h4>
+                <p>Parent & Software Engineer</p>
+              </div>
+            </div>
+          </div>
+        </div>
+      </div>
+    </section>
+
+    <section class="cta">
+      <div class="container">
+        <h2>Ready to Start Your Culinary Coding Journey?</h2>
+        <p>Join thousands of learners mastering stack-based computing through the art of French cuisine.</p>
+        <a href="/signup" class="button button-large button-primary">Get Started</a>
+      </div>
+    </section>
+  </main>
+
+  <footer class="site-footer">
+    <div class="container">
+      <div class="footer-grid">
+        <div class="footer-column">
+          <img src="assets/images/cuisine-code-logo.svg" alt="Cuisine Code Logo" class="footer-logo">
+          <p>Learn stack-based computing through French culinary metaphors.</p>
+          <div class="social-links">
+            <a href="https://twitter.com/cuisinecode" aria-label="Twitter">
+              <img src="assets/icons/twitter.svg" alt="Twitter">
+            </a>
+            <a href="https://github.com/defrecord/cuisine-code" aria-label="GitHub">
+              <img src="assets/icons/github.svg" alt="GitHub">
+            </a>
+            <a href="https://discord.gg/cuisinecode" aria-label="Discord">
+              <img src="assets/icons/discord.svg" alt="Discord">
+            </a>
+          </div>
+        </div>
+        <div class="footer-column">
+          <h3>Product</h3>
+          <ul>
+            <li><a href="/#features">Features</a></li>
+            <li><a href="/pricing">Pricing</a></li>
+            <li><a href="/roadmap">Roadmap</a></li>
+            <li><a href="/releases">Release Notes</a></li>
+          </ul>
+        </div>
+        <div class="footer-column">
+          <h3>Resources</h3>
+          <ul>
+            <li><a href="/documentation">Documentation</a></li>
+            <li><a href="/tutorials">Tutorials</a></li>
+            <li><a href="/api">API Reference</a></li>
+            <li><a href="/blog">Blog</a></li>
+          </ul>
+        </div>
+        <div class="footer-column">
+          <h3>Community</h3>
+          <ul>
+            <li><a href="/community">Forums</a></li>
+            <li><a href="/events">Events</a></li>
+            <li><a href="/contribute">Contribute</a></li>
+            <li><a href="/showcase">Showcase</a></li>
+          </ul>
+        </div>
+        <div class="footer-column">
+          <h3>Company</h3>
+          <ul>
+            <li><a href="/about">About Us</a></li>
+            <li><a href="/contact">Contact</a></li>
+            <li><a href="/careers">Careers</a></li>
+            <li><a href="/press">Press Kit</a></li>
+          </ul>
+        </div>
+      </div>
+      <div class="footer-bottom">
+        <p>&copy; 2025 Defrecord. All rights reserved.</p>
+        <div class="legal-links">
+          <a href="/terms">Terms of Service</a>
+          <a href="/privacy">Privacy Policy</a>
+          <a href="/cookies">Cookie Policy</a>
+        </div>
+      </div>
+    </div>
+  </footer>
+
+  <script src="js/main.js"></script>
+</body>
+</html>
+#+END_SRC
+
+** CSS Styling
+
+#+BEGIN_SRC css :tangle web/src/css/base/typography.css :mkdirp yes
+/* Typography Styles for Cuisine Code
+   Copyright (c) 2025 Aidan Pace */
+
+:root {
+  --font-primary: 'Open Sans', -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, Oxygen, Ubuntu, Cantarell, 'Helvetica Neue', sans-serif;
+  --font-secondary: 'Playfair Display', Georgia, 'Times New Roman', serif;
+  --font-mono: 'Fira Code', 'Roboto Mono', Consolas, Monaco, 'Andale Mono', monospace;
+  
+  --font-size-xs: 0.75rem;   /* 12px */
+  --font-size-sm: 0.875rem;  /* 14px */
+  --font-size-base: 1rem;    /* 16px */
+  --font-size-md: 1.125rem;  /* 18px */
+  --font-size-lg: 1.25rem;   /* 20px */
+  --font-size-xl: 1.5rem;    /* 24px */
+  --font-size-2xl: 1.875rem; /* 30px */
+  --font-size-3xl: 2.25rem;  /* 36px */
+  --font-size-4xl: 3rem;     /* 48px */
+  
+  --line-height-tight: 1.25;
+  --line-height-base: 1.5;
+  --line-height-loose: 1.75;
+  
+  --font-weight-light: 300;
+  --font-weight-normal: 400;
+  --font-weight-medium: 500;
+  --font-weight-semibold: 600;
+  --font-weight-bold: 700;
+}
+
+/* Base Typography */
+body {
+  font-family: var(--font-primary);
+  font-size: var(--font-size-base);
+  line-height: var(--line-height-base);
+  color: var(--color-text);
+}
+
+/* Headings */
+h1, h2, h3, h4, h5, h6 {
+  font-family: var(--font-secondary);
+  font-weight: var(--font-weight-bold);
+  line-height: var(--line-height-tight);
+  margin-bottom: 1rem;
+}
+
+h1 {
+  font-size: var(--font-size-4xl);
+}
+
+h2 {
+  font-size: var(--font-size-3xl);
+}
+
+h3 {
+  font-size: var(--font-size-2xl);
+}
+
+h4 {
+  font-size: var(--font-size-xl);
+}
+
+h5 {
+  font-size: var(--font-size-lg);
+}
+
+h6 {
+  font-size: var(--font-size-md);
+}
+
+/* Paragraphs */
+p {
+  margin-bottom: 1rem;
+}
+
+/* Links */
+a {
+  color: var(--color-primary);
+  text-decoration: none;
+  transition: color 0.2s ease;
+}
+
+a:hover {
+  color: var(--color-primary-dark);
+  text-decoration: underline;
+}
+
+/* Lists */
+ul, ol {
+  margin-bottom: 1rem;
+  padding-left: 1.5rem;
+}
+
+ul {
+  list-style-type: disc;
+}
+
+ol {
+  list-style-type: decimal;
+}
+
+li {
+  margin-bottom: 0.5rem;
+}
+
+/* Code */
+code, pre {
+  font-family: var(--font-mono);
+  font-size: var(--font-size-sm);
+  background-color: var(--color-code-bg);
+  border-radius: 4px;
+}
+
+code {
+  padding: 0.2rem 0.4rem;
+}
+
+pre {
+  padding: 1rem;
+  overflow-x: auto;
+  margin-bottom: 1rem;
+}
+
+pre code {
+  padding: 0;
+  background-color: transparent;
+}
+
+/* Quotes */
+blockquote {
+  padding-left: 1rem;
+  border-left: 4px solid var(--color-primary);
+  font-style: italic;
+  margin-bottom: 1rem;
+}
+
+/* Responsive Typography */
+@media (max-width: 768px) {
+  h1 {
+    font-size: var(--font-size-3xl);
+  }
+  
+  h2 {
+    font-size: var(--font-size-2xl);
+  }
+  
+  h3 {
+    font-size: var(--font-size-xl);
+  }
+}
+
+@media (max-width: 480px) {
+  h1 {
+    font-size: var(--font-size-2xl);
+  }
+  
+  h2 {
+    font-size: var(--font-size-xl);
+  }
+  
+  h3 {
+    font-size: var(--font-size-lg);
+  }
+  
+  body {
+    font-size: var(--font-size-sm);
+  }
+}
+#+END_SRC
+
+#+BEGIN_SRC css :tangle web/src/css/themes/light.css :mkdirp yes
+/* Light Theme for Cuisine Code
+   Copyright (c) 2025 Aidan Pace */
+
+:root {
+  /* Base Colors */
+  --color-primary: #e74c3c;          /* French red */
+  --color-primary-light: #f6928f;
+  --color-primary-dark: #c0392b;
+  
+  --color-secondary: #3498db;        /* Blue */
+  --color-secondary-light: #5dade2;
+  --color-secondary-dark: #2980b9;
+  
+  --color-accent: #f39c12;           /* Gold */
+  --color-accent-light: #f8c471;
+  --color-accent-dark: #d68910;
+  
+  /* Neutral Colors */
+  --color-white: #ffffff;
+  --color-gray-100: #f8f9fa;
+  --color-gray-200: #e9ecef;
+  --color-gray-300: #dee2e6;
+  --color-gray-400: #ced4da;
+  --color-gray-500: #adb5bd;
+  --color-gray-600: #6c757d;
+  --color-gray-700: #495057;
+  --color-gray-800: #343a40;
+  --color-gray-900: #212529;
+  --color-black: #000000;
+  
+  /* Semantic Colors */
+  --color-success: #28a745;
+  --color-info: #17a2b8;
+  --color-warning: #ffc107;
+  --color-danger: #dc3545;
+  
+  /* Background Colors */
+  --color-bg-primary: var(--color-white);
+  --color-bg-secondary: var(--color-gray-100);
+  --color-bg-tertiary: var(--color-gray-200);
+  
+  /* Text Colors */
+  --color-text: var(--color-gray-800);
+  --color-text-light: var(--color-gray-600);
+  --color-text-inverse: var(--color-white);
+  
+  /* Border Colors */
+  --color-border: var(--color-gray-300);
+  --color-border-light: var(--color-gray-200);
+  --color-border-dark: var(--color-gray-400);
+  
+  /* Code Colors */
+  --color-code-bg: var(--color-gray-100);
+  --color-code-text: var(--color-gray-800);
+  
+  /* Shadow */
+  --shadow-sm: 0 1px 2px rgba(0, 0, 0, 0.05);
+  --shadow-md: 0 4px 6px rgba(0, 0, 0, 0.1);
+  --shadow-lg: 0 10px 15px rgba(0, 0, 0, 0.1);
+  --shadow-xl: 0 20px 25px rgba(0, 0, 0, 0.1);
+}
+
+/* Dark Mode Toggle Icon */
+.theme-icon {
+  background-image: url('../../assets/icons/moon.svg');
+  width: 24px;
+  height: 24px;
+  display: block;
+}
+#+END_SRC
+
+#+BEGIN_SRC css :tangle web/src/css/themes/dark.css :mkdirp yes
+/* Dark Theme for Cuisine Code
+   Copyright (c) 2025 Aidan Pace */
+
+:root {
+  /* Base Colors */
+  --color-primary: #f05545;          /* French red, slightly lightened */
+  --color-primary-light: #f6928f;
+  --color-primary-dark: #c0392b;
+  
+  --color-secondary: #3498db;        /* Blue */
+  --color-secondary-light: #5dade2;
+  --color-secondary-dark: #2980b9;
+  
+  --color-accent: #f39c12;           /* Gold */
+  --color-accent-light: #f8c471;
+  --color-accent-dark: #d68910;
+  
+  /* Neutral Colors - inverted */
+  --color-white: #121212;
+  --color-gray-100: #212529;
+  --color-gray-200: #343a40;
+  --color-gray-300: #495057;
+  --color-gray-400: #6c757d;
+  --color-gray-500: #adb5bd;
+  --color-gray-600: #ced4da;
+  --color-gray-700: #dee2e6;
+  --color-gray-800: #e9ecef;
+  --color-gray-900: #f8f9fa;
+  --color-black: #ffffff;
+  
+  /* Semantic Colors */
+  --color-success: #28a745;
+  --color-info: #17a2b8;
+  --color-warning: #ffc107;
+  --color-danger: #dc3545;
+  
+  /* Background Colors */
+  --color-bg-primary: #121212;
+  --color-bg-secondary: #1e1e1e;
+  --color-bg-tertiary: #2d2d2d;
+  
+  /* Text Colors */
+  --color-text: #e9ecef;
+  --color-text-light: #ced4da;
+  --color-text-inverse: #121212;
+  
+  /* Border Colors */
+  --color-border: #495057;
+  --color-border-light: #343a40;
+  --color-border-dark: #6c757d;
+  
+  /* Code Colors */
+  --color-code-bg: #2d2d2d;
+  --color-code-text: #e9ecef;
+  
+  /* Shadow */
+  --shadow-sm: 0 1px 2px rgba(0, 0, 0, 0.3);
+  --shadow-md: 0 4px 6px rgba(0, 0, 0, 0.4);
+  --shadow-lg: 0 10px 15px rgba(0, 0, 0, 0.4);
+  --shadow-xl: 0 20px 25px rgba(0, 0, 0, 0.4);
+}
+
+/* Light Mode Toggle Icon */
+.theme-icon {
+  background-image: url('../../assets/icons/sun.svg');
+  width: 24px;
+  height: 24px;
+  display: block;
+}
+
+/* Dark Mode Specific Adjustments */
+body {
+  background-color: var(--color-bg-primary);
+  color: var(--color-text);
+}
+
+.site-header, .site-footer {
+  background-color: var(--color-bg-secondary);
+}
+
+img {
+  filter: brightness(0.9);
+}
+#+END_SRC
+
+** JavaScript Code
+
+#+BEGIN_SRC javascript :tangle web/src/js/theme-switcher.js :mkdirp yes
+/**
+ * Theme Switcher for Cuisine Code
+ * Copyright (c) 2025 Aidan Pace
+ */
+
+document.addEventListener('DOMContentLoaded', () => {
+  const themeToggle = document.getElementById('theme-toggle');
+  const themeStylesheet = document.getElementById('theme-stylesheet');
+  
+  // Check for user preference
+  const prefersDarkMode = window.matchMedia('(prefers-color-scheme: dark)').matches;
+  const savedTheme = localStorage.getItem('theme');
+  
+  // Set initial theme
+  if (savedTheme) {
+    setTheme(savedTheme);
+  } else if (prefersDarkMode) {
+    setTheme('dark');
+  } else {
+    setTheme('light');
+  }
+  
+  // Theme toggle handler
+  themeToggle.addEventListener('click', () => {
+    const currentTheme = themeStylesheet.getAttribute('href').includes('dark') ? 'dark' : 'light';
+    const newTheme = currentTheme === 'dark' ? 'light' : 'dark';
+    
+    setTheme(newTheme);
+  });
+  
+  function setTheme(theme) {
+    const themePath = `css/themes/${theme}.css`;
+    themeStylesheet.setAttribute('href', themePath);
+    localStorage.setItem('theme', theme);
+    
+    // Update body class for additional styling
+    document.body.classList.remove('theme-light', 'theme-dark');
+    document.body.classList.add(`theme-${theme}`);
+  }
+});
+#+END_SRC
+
+#+BEGIN_SRC javascript :tangle web/src/js/main.js :mkdirp yes
+/**
+ * Main JavaScript for Cuisine Code Website
+ * Copyright (c) 2025 Aidan Pace
+ */
+
+document.addEventListener('DOMContentLoaded', () => {
+  // Initialize components
+  initializeNavigation();
+  initializeTestimonialSlider();
+  initializeAnimations();
+  
+  // Check if the kitchen application should be loaded
+  if (document.getElementById('kitchen-app')) {
+    loadKitchenApp();
+  }
+});
+
+/**
+ * Initialize responsive navigation
+ */
+function initializeNavigation() {
+  const header = document.querySelector('.site-header');
+  const mobileMenuToggle = document.createElement('button');
+  
+  mobileMenuToggle.className = 'mobile-menu-toggle';
+  mobileMenuToggle.setAttribute('aria-label', 'Toggle navigation menu');
+  mobileMenuToggle.innerHTML = '<span></span><span></span><span></span>';
+  
+  header.querySelector('.header-right').prepend(mobileMenuToggle);
+  
+  // Handle mobile menu toggle
+  mobileMenuToggle.addEventListener('click', () => {
+    header.classList.toggle('menu-open');
+    
+    const isOpen = header.classList.contains('menu-open');
+    mobileMenuToggle.setAttribute('aria-expanded', isOpen ? 'true' : 'false');
+  });
+  
+  // Close menu when clicking outside
+  document.addEventListener('click', (event) => {
+    if (header.classList.contains('menu-open') && 
+        !event.target.closest('.site-header')) {
+      header.classList.remove('menu-open');
+      mobileMenuToggle.setAttribute('aria-expanded', 'false');
+    }
+  });
+  
+  // Handle scroll behavior
+  let lastScrollTop = 0;
+  
+  window.addEventListener('scroll', () => {
+    const scrollTop = window.pageYOffset || document.documentElement.scrollTop;
+    
+    // Add box shadow when scrolled
+    if (scrollTop > 0) {
+      header.classList.add('scrolled');
+    } else {
+      header.classList.remove('scrolled');
+    }
+    
+    // Hide on scroll down, show on scroll up
+    if (scrollTop > lastScrollTop && scrollTop > 100) {
+      header.classList.add('hidden');
+    } else {
+      header.classList.remove('hidden');
+    }
+    
+    lastScrollTop = scrollTop;
+  });
+}
+
+/**
+ * Initialize testimonial slider
+ */
+function initializeTestimonialSlider() {
+  const slider = document.querySelector('.testimonial-slider');
+  
+  if (!slider) return;
+  
+  const testimonials = slider.querySelectorAll('.testimonial');
+  let currentIndex = 0;
+  
+  // Create navigation elements
+  const sliderNav = document.createElement('div');
+  sliderNav.className = 'slider-nav';
+  
+  const prevButton = document.createElement('button');
+  prevButton.className = 'slider-prev';
+  prevButton.setAttribute('aria-label', 'Previous testimonial');
+  prevButton.innerHTML = '&larr;';
+  
+  const nextButton = document.createElement('button');
+  nextButton.className = 'slider-next';
+  nextButton.setAttribute('aria-label', 'Next testimonial');
+  nextButton.innerHTML = '&rarr;';
+  
+  const indicators = document.createElement('div');
+  indicators.className = 'slider-indicators';
+  
+  testimonials.forEach((_, index) => {
+    const indicator = document.createElement('button');
+    indicator.className = 'slider-indicator';
+    indicator.setAttribute('aria-label', `Go to testimonial ${index + 1}`);
+    
+    if (index === 0) {
+      indicator.classList.add('active');
+    }
+    
+    indicator.addEventListener('click', () => {
+      goToSlide(index);
+    });
+    
+    indicators.appendChild(indicator);
+  });
+  
+  sliderNav.appendChild(prevButton);
+  sliderNav.appendChild(indicators);
+  sliderNav.appendChild(nextButton);
+  
+  slider.parentNode.appendChild(sliderNav);
+  
+  // Initialize slider
+  testimonials.forEach((testimonial, index) => {
+    testimonial.style.transform = `translateX(${(index - currentIndex) * 100}%)`;
+  });
+  
+  // Event listeners
+  prevButton.addEventListener('click', previousSlide);
+  nextButton.addEventListener('click', nextSlide);
+  
+  // Auto-advance
+  let intervalId = setInterval(nextSlide, 5000);
+  
+  slider.addEventListener('mouseenter', () => {
+    clearInterval(intervalId);
+  });
+  
+  slider.addEventListener('mouseleave', () => {
+    intervalId = setInterval(nextSlide, 5000);
+  });
+  
+  // Touch support
+  let touchStartX = 0;
+  let touchEndX = 0;
+  
+  slider.addEventListener('touchstart', (e) => {
+    touchStartX = e.changedTouches[0].screenX;
+  });
+  
+  slider.addEventListener('touchend', (e) => {
+    touchEndX = e.changedTouches[0].screenX;
+    handleSwipe();
+  });
+  
+  function handleSwipe() {
+    const swipeThreshold = 50;
+    
+    if (touchEndX < touchStartX - swipeThreshold) {
+      nextSlide();
+    } else if (touchEndX > touchStartX + swipeThreshold) {
+      previousSlide();
+    }
+  }
+  
+  function goToSlide(index) {
+    const indicators = document.querySelectorAll('.slider-indicator');
+    
+    testimonials.forEach((testimonial, i) => {
+      testimonial.style.transform = `translateX(${(i - index) * 100}%)`;
+      testimonial.setAttribute('aria-hidden', i !== index);
+    });
+    
+    indicators.forEach((indicator, i) => {
+      indicator.classList.toggle('active', i === index);
+    });
+    
+    currentIndex = index;
+  }
+  
+  function nextSlide() {
+    const newIndex = (currentIndex + 1) % testimonials.length;
+    goToSlide(newIndex);
+  }
+  
+  function previousSlide() {
+    const newIndex = (currentIndex - 1 + testimonials.length) % testimonials.length;
+    goToSlide(newIndex);
+  }
+}
+
+/**
+ * Initialize scroll animations
+ */
+function initializeAnimations() {
+  const elements = document.querySelectorAll('.feature-card, .step, .section-title');
+  
+  const observer = new IntersectionObserver((entries) => {
+    entries.forEach(entry => {
+      if (entry.isIntersecting) {
+        entry.target.classList.add('visible');
+        observer.unobserve(entry.target);
+      }
+    });
+  }, {
+    threshold: 0.1
+  });
+  
+  elements.forEach(element => {
+    element.classList.add('animate');
+    observer.observe(element);
+  });
+}
+
+/**
+ * Load the kitchen application
+ */
+function loadKitchenApp() {
+  // Dynamic import of kitchen app
+  import('./kitchen/app.js')
+    .then((module) => {
+      const appContainer = document.getElementById('kitchen-app');
+      module.initializeKitchenApp(appContainer);
+    })
+    .catch((error) => {
+      console.error('Failed to load kitchen application:', error);
+      
+      const appContainer = document.getElementById('kitchen-app');
+      appContainer.innerHTML = `
+        <div class="error-message">
+          <h3>Error Loading Application</h3>
+          <p>There was a problem loading the kitchen application. Please try refreshing the page.</p>
+          <button class="button button-primary" onclick="location.reload()">Refresh Page</button>
+        </div>
+      `;
+    });
+}
+#+END_SRC
+
+* Local Development Server
+
+#+BEGIN_SRC javascript :tangle tools/dev-server.js :mkdirp yes
+/**
+ * Development Server for Cuisine Code
+ * Copyright (c) 2025 Aidan Pace
+ */
+
+const http = require('http');
+const fs = require('fs');
+const path = require('path');
+const { exec } = require('child_process');
+
+// Configuration
+const config = {
+  port: 3000,
+  webRoot: './web/src',
+  apiProxy: {
+    host: 'localhost',
+    port: 3001
+  },
+  mimeTypes: {
+    '.html': 'text/html',
+    '.css': 'text/css',
+    '.js': 'text/javascript',
+    '.json': 'application/json',
+    '.png': 'image/png',
+    '.jpg': 'image/jpeg',
+    '.gif': 'image/gif',
+    '.svg': 'image/svg+xml',
+    '.wasm': 'application/wasm',
+    '.ico': 'image/x-icon'
+  },
+  livereload: true
+};
+
+// Create HTTP server
+const server = http.createServer((req, res) => {
+  // Log request
+  console.log(`${new Date().toISOString()} - ${req.method} ${req.url}`);
+  
+  // Parse URL
+  const parsedUrl = new URL(req.url, `http://${req.headers.host}`);
+  let pathname = parsedUrl.pathname;
+  
+  // Normalize pathname
+  pathname = pathname === '/' ? '/index.html' : pathname;
+  
+  // Handle API requests
+  if (pathname.startsWith('/api/')) {
+    proxyRequest(req, res, pathname);
+    return;
+  }
+  
+  // Serve static files
+  serveStaticFile(res, pathname);
+});
+
+/**
+ * Proxy API requests to the API server
+ */
+function proxyRequest(req, res, pathname) {
+  const options = {
+    hostname: config.apiProxy.host,
+    port: config.apiProxy.port,
+    path: pathname,
+    method: req.method,
+    headers: req.headers
+  };
+  
+  const proxyReq = http.request(options, (proxyRes) => {
+    res.writeHead(proxyRes.statusCode, proxyRes.headers);
+    proxyRes.pipe(res, { end: true });
+  });
+  
+  proxyReq.on('error', (err) => {
+    console.error(`Proxy error: ${err.message}`);
+    res.writeHead(502);
+    res.end('Bad Gateway');
+  });
+  
+  req.pipe(proxyReq, { end: true });
+}
+
+/**
+ * Serve a static file
+ */
+function serveStaticFile(res, pathname) {
+  // Determine file path
+  const filePath = path.join(config.webRoot, pathname);
+  const ext = path.extname(filePath);
+  
+  // Check if file exists
+  fs.access(filePath, fs.constants.R_OK, (err) => {
+    if (err) {
+      res.writeHead(404);
+      res.end('404 Not Found');
+      return;
+    }
+    
+    // Read and serve the file
+    fs.readFile(filePath, (err, data) => {
+      if (err) {
+        res.writeHead(500);
+        res.end('500 Internal Server Error');
+        return;
+      }
+      
+      // Determine content type
+      const contentType = config.mimeTypes[ext] || 'application/octet-stream';
+      
+      // Add livereload script if enabled and serving HTML
+      if (config.livereload && contentType === 'text/html') {
+        const livereloadScript = `
+          <script>
+            // Livereload
+            const ws = new WebSocket('ws://localhost:35729/livereload');
+            ws.onmessage = function(event) {
+              if (event.data === 'reload') {
+                window.location.reload();
+              }
+            };
+          </script>
+        </body>`;
+        
+        data = data.toString().replace('</body>', livereloadScript);
+      }
+      
+      // Send response
+      res.writeHead(200, { 'Content-Type': contentType });
+      res.end(data);
+    });
+  });
+}
+
+// Start the server
+server.listen(config.port, () => {
+  console.log(`\n🍳 Cuisine Code development server running at http://localhost:${config.port}/`);
+  console.log(`   Serving files from: ${path.resolve(config.webRoot)}`);
+  console.log(`   API requests proxied to: http://${config.apiProxy.host}:${config.apiProxy.port}/api/`);
+  
+  // Start API server if not already running
+  startAPIServer();
+  
+  // Start livereload server if enabled
+  if (config.livereload) {
+    startLivereloadServer();
+  }
+});
+
+/**
+ * Start the API server
+ */
+function startAPIServer() {
+  console.log('\n📡 Starting API server...');
+  
+  const apiProcess = exec('guile -L . -e main scheme/src/server/main.scm', (error) => {
+    if (error) {
+      console.error(`\n❌ API server error: ${error.message}`);
+      return;
+    }
+  });
+  
+  apiProcess.stdout.on('data', (data) => {
+    console.log(`API: ${data.trim()}`);
+  });
+  
+  apiProcess.stderr.on('data', (data) => {
+    console.error(`API ERR: ${data.trim()}`);
+  });
+  
+  // Handle server shutdown
+  process.on('SIGINT', () => {
+    console.log('\n🛑 Shutting down servers...');
+    apiProcess.kill();
+    process.exit();
+  });
+}
+
+/**
+ * Start the livereload server
+ */
+function startLivereloadServer() {
+  console.log('\n🔄 Starting livereload server...');
+  
+  const WebSocket = require('ws');
+  const chokidar = require('chokidar');
+  
+  // Create WebSocket server
+  const wss = new WebSocket.Server({ port: 35729 });
+  
+  // Watch for file changes
+  const watcher = chokidar.watch(config.webRoot, {
+    ignored: /(^|[\/\\])\../, // Ignore dotfiles
+    persistent: true
+  });
+  
+  watcher.on('change', (path) => {
+    console.log(`File changed: ${path}`);
+    
+    // Notify all clients
+    wss.clients.forEach((client) => {
+      if (client.readyState === WebSocket.OPEN) {
+        client.send('reload');
+      }
+    });
+  });
+  
+  console.log('   Livereload server running on ws://localhost:35729/livereload');
+}
+#+END_SRC
+
+* Additional Documentation
+** Development Environment
+
+#+BEGIN_SRC markdown :tangle docs/development-environment.md :mkdirp yes
+# Development Environment Setup
+
+This document details how to set up the development environment for the Cuisine Code project.
+
+## Prerequisites
+
+### FreeBSD
+
+Cuisine Code is developed and optimized for FreeBSD. For the best development experience, use FreeBSD 14.0 or later.
+
+### Required Software
+
+- **Guile Scheme 3.x**: The core programming language
+- **Emscripten**: For WebAssembly compilation
+- **Node.js**: For web development
+- **Git**: For version control
+- **Make**: For build automation
+
+## Installation
+
+### 1. Install Dependencies
+
+```bash
+# Update package repository
+pkg update
+
+# Install core dependencies
+pkg install -y guile3 emscripten node npm gmake git
+
+# Install documentation tools
+pkg install -y mermaid-cli openapi-generator
+
+# Install testing tools
+pkg install -y guile-test
+```
+
+### 2. Clone the Repository
+
+```bash
+git clone https://github.com/defrecord/cuisine-code.git
+cd cuisine-code
+```
+
+### 3. Set Up the Project
+
+```bash
+# Create project directories
+make setup
+
+# Install project dependencies
+make deps
+```
+
+## Development Workflow
+
+### Building the Project
+
+```bash
+# Build everything
+make all
+
+# Build specific components
+make compile-scheme
+make compile-c
+make compile-wasm
+```
+
+### Running the Development Server
+
+```bash
+# Start the development server
+make serve
+```
+
+This will:
+- Start the API server on port 3001
+- Start the web server on port 3000
+- Enable livereload for automatic browser refresh
+
+### Running Tests
+
+```bash
+# Run all tests
+make test
+
+# Run specific test suites
+make test-core
+make test-game
+make test-ui
+```
+
+## Project Structure
+
+```
+cuisine-code/
+├── scheme/               # Scheme source code
+│   ├── src/              # Main source code
+│   │   ├── core/         # Core implementation
+│   │   ├── game/         # Game mechanics
+│   │   ├── ui/           # User interface
+│   │   └── server/       # Server implementation
+│   └── tests/            # Test suites
+├── web/                  # Web interface
+│   ├── src/              # Web source files
+│   └── wasm/             # WebAssembly output
+├── c-output/             # C compilation output
+├── tools/                # Development tools
+├── docs/                 # Documentation
+├── scripts/              # Utility scripts
+└── config/               # Configuration files
+```
+
+## Code Style Guidelines
+
+### Scheme Style
+
+- Use 2-space indentation
+- Use kebab-case for function and variable names
+- Include docstrings for all public functions
+- Group related functions together
+
+### JavaScript Style
+
+- Use 2-space indentation
+- Follow ES6+ conventions
+- Use camelCase for variables and functions
+- Use PascalCase for classes and components
+
+## Version Control Workflow
+
+We follow a feature branch workflow:
+
+1. Create a feature branch:
+   ```bash
+   git checkout -b feature/your-feature-name
+   ```
+
+2. Make your changes and commit:
+   ```bash
+   git add .
+   git commit -m "feat: Add your feature description"
+   ```
+
+3. Push your branch:
+   ```bash
+   git push origin feature/your-feature-name
+   ```
+
+4. Create a pull request to the main branch
+
+## Troubleshooting
+
+### Common Issues
+
+#### 1. Compilation Errors
+
+If you encounter compilation errors:
+
+```bash
+# Clean build artifacts
+make clean
+
+# Rebuild from scratch
+make all
+```
+
+#### 2. Development Server Issues
+
+If the development server fails to start:
+
+```bash
+# Check for port conflicts
+ss -tulpn | grep -E '3000|3001'
+
+# Restart the server
+make serve
+```
+
+#### 3. WebAssembly Compilation Issues
+
+If WebAssembly compilation fails:
+
+```bash
+# Update Emscripten
+emcc --clear-cache
+emcc --check
+
+# Try compilation again
+make compile-wasm
+```
+
+## Additional Tools
+
+### Recommended Editor: Emacs
+
+For the best development experience with Scheme, we recommend using Emacs with:
+
+- Geiser: For Scheme interaction
+- Paredit: For structural editing
+- Org-mode: For literate programming
+
+### Alternative Editors
+
+- VSCode with "Magic Racket" extension
+- Vim with "vim-sexp" and "vim-scheme" plugins
+- IntelliJ IDEA with "Cursive" plugin
+
+## Getting Help
+
+If you need help with the development environment:
+
+- Check the [GitHub Issues](https://github.com/defrecord/cuisine-code/issues)
+- Join our [Discord Server](https://discord.gg/cuisinecode)
+- Email the development team at dev@cuisinecode.com
+#+END_SRC
+
+** API Reference
+
+#+BEGIN_SRC markdown :tangle docs/api-reference.md :mkdirp yes
+# Cuisine Code API Reference
+
+This document provides a reference for the Cuisine Code API.
+
+## Base URL
+
+```
+https://api.cuisinecode.com
+```
+
+## Authentication
+
+Most API endpoints require authentication. There are two authentication methods:
+
+### API Key Authentication
+
+For server-to-server communication:
+
+```
+Authorization: Bearer YOUR_API_KEY
+```
+
+### OAuth 2.0 Authentication
+
+For user-specific operations:
+
+1. Redirect users to the authorization endpoint
+2. Exchange the authorization code for an access token
+3. Include the access token in API requests:
+
+```
+Authorization: Bearer YOUR_ACCESS_TOKEN
+```
+
+## Endpoints
+
+### Kitchen API
+
+#### Get Stack
+
+```
+GET /api/kitchen/stack
+```
+
+Returns the current state of the kitchen stack.
+
+**Response**
+
+```json
+{
+  "stack": [
+    {
+      "id": "a1b2c3",
+      "type": "ingredient",
+      "name": "butter",
+      "properties": {
+        "state": "solid",
+        "temperature": 4
+      }
+    },
+    {
+      "id": "d4e5f6",
+      "type": "ingredient",
+      "name": "herbs",
+      "properties": {
+        "type": "fresh",
+        "flavor": "strong"
+      }
+    }
+  ]
+}
+```
+
+#### Perform Stack Operation
+
+```
+POST /api/kitchen/stack
+```
+
+Execute a stack operation (push, pop, swap, etc.).
+
+**Request Body**
+
+```json
+{
+  "operation": "push",
+  "item": {
+    "name": "butter",
+    "properties": {
+      "state": "solid",
+      "temperature": 4
+    }
+  }
+}
+```
+
+**Response**
+
+```json
+{
+  "result": "success",
+  "stack": [
+    {
+      "id": "a1b2c3",
+      "type": "ingredient",
+      "name": "butter",
+      "properties": {
+        "state": "solid",
+        "temperature": 4
+      }
+    }
+  ]
+}
+```
+
+#### Apply Transformation
+
+```
+POST /api/kitchen/transform
+```
+
+Apply a culinary transformation to ingredients.
+**Request Body**
+
+```json
+{
+  "transformation": "chop",
+  "parameters": {
+    "style": "fine"
+  }
+}
+```
+
+**Response**
+
+```json
+{
+  "result": {
+    "id": "g7h8i9",
+    "type": "preparation",
+    "name": "fine-chopped-herbs",
+    "properties": {
+      "source_items": ["d4e5f6"],
+      "preparation": "fine-chopped"
+    }
+  }
+}
+```
+
+#### List Transformations
+
+```
+GET /api/kitchen/transformations
+```
+
+Get a list of available transformations.
+
+**Response**
+
+```json
+[
+  {
+    "id": "chop",
+    "name": "Chop",
+    "category": "mechanical",
+    "description": "Cut ingredient into pieces",
+    "parameters": [
+      {
+        "name": "style",
+        "type": "enum",
+        "required": false,
+        "default": "medium",
+        "options": ["rough", "medium", "fine"]
+      }
+    ]
+  },
+  {
+    "id": "saute",
+    "name": "Sauté",
+    "category": "thermal",
+    "description": "Cook quickly in a small amount of fat",
+    "parameters": [
+      {
+        "name": "temperature",
+        "type": "number",
+        "required": false,
+        "default": 180
+      },
+      {
+        "name": "duration",
+        "type": "number",
+        "required": false,
+        "default": 60
+      }
+    ]
+  }
+]
+```
+
+### Recipe API
+
+#### List Recipes
+
+```
+GET /api/recipes
+```
+
+Get a list of available recipes.
+
+**Parameters**
+
+- `category` (optional): Filter by recipe category
+- `difficulty` (optional): Filter by difficulty level
+
+**Response**
+
+```json
+[
+  {
+    "id": "herb-butter",
+    "name": "Herb Compound Butter",
+    "category": "Basics",
+    "difficulty": "beginner",
+    "description": "A simple herb-infused butter for enhancing dishes."
+  },
+  {
+    "id": "basic-mirepoix",
+    "name": "Basic Mirepoix",
+    "category": "Basics",
+    "difficulty": "beginner",
+    "description": "The aromatic flavor base of French cuisine."
+  }
+]
+```
+
+#### Get Recipe
+
+```
+GET /api/recipes/{id}
+```
+
+Get a specific recipe by ID.
+
+**Response**
+
+```json
+{
+  "id": "herb-butter",
+  "name": "Herb Compound Butter",
+  "category": "Basics",
+  "difficulty": "beginner",
+  "description": "A simple herb-infused butter for enhancing dishes.",
+  "ingredients": [
+    ["butter", 250, "g"],
+    ["herbs", 30, "g"],
+    ["garlic", 2, "cloves"],
+    ["salt", 5, "g"]
+  ],
+  "steps": [
+    ["push", "butter"],
+    ["transform", "soften", {"temperature": 20}],
+    ["push", "herbs"],
+    ["transform", "chop", {"style": "fine"}],
+    ["push", "garlic"],
+    ["transform", "mince"],
+    ["push", "salt"],
+    ["transform", "combine"],
+    ["transform", "shape", {"form": "log"}],
+    ["transform", "chill", {"duration": 120}]
+  ],
+  "expected_result": {
+    "type": "compound-butter",
+    "properties": {
+      "state": "solid",
+      "flavor": "herb-garlic"
+    }
+  },
+  "created_at": "2025-01-15T10:30:00Z",
+  "updated_at": "2025-02-20T14:45:00Z",
+  "author": "system"
+}
+```
+
+#### Create Recipe
+
+```
+POST /api/recipes
+```
+
+Create a new recipe.
+
+**Request Body**
+
+```json
+{
+  "name": "Garlic Aioli",
+  "category": "Sauces",
+  "difficulty": "intermediate",
+  "description": "A classic garlic mayonnaise.",
+  "ingredients": [
+    ["egg-yolk", 2, "large"],
+    ["garlic", 4, "cloves"],
+    ["lemon-juice", 15, "ml"],
+    ["olive-oil", 250, "ml"],
+    ["salt", 5, "g"]
+  ],
+  "steps": [
+    ["push", "garlic"],
+    ["transform", "mince"],
+    ["push", "egg-yolk"],
+    ["push", "lemon-juice"],
+    ["transform", "combine"],
+    ["transform", "whisk", {"duration": 30}],
+    ["push", "olive-oil"],
+    ["transform", "emulsify", {"speed": "slow"}],
+    ["push", "salt"],
+    ["transform", "fold"]
+  ],
+  "expected_result": {
+    "type": "sauce",
+    "properties": {
+      "consistency": "thick",
+      "flavor": "garlic"
+    }
+  }
+}
+```
+
+**Response**
+
+```json
+{
+  "id": "garlic-aioli",
+  "name": "Garlic Aioli",
+  "category": "Sauces",
+  "difficulty": "intermediate",
+  "description": "A classic garlic mayonnaise.",
+  "ingredients": [
+    ["egg-yolk", 2, "large"],
+    ["garlic", 4, "cloves"],
+    ["lemon-juice", 15, "ml"],
+    ["olive-oil", 250, "ml"],
+    ["salt", 5, "g"]
+  ],
+  "steps": [
+    ["push", "garlic"],
+    ["transform", "mince"],
+    ["push", "egg-yolk"],
+    ["push", "lemon-juice"],
+    ["transform", "combine"],
+    ["transform", "whisk", {"duration": 30}],
+    ["push", "olive-oil"],
+    ["transform", "emulsify", {"speed": "slow"}],
+    ["push", "salt"],
+    ["transform", "fold"]
+  ],
+  "expected_result": {
+    "type": "sauce",
+    "properties": {
+      "consistency": "thick",
+      "flavor": "garlic"
+    }
+  },
+  "created_at": "2025-04-10T09:15:00Z",
+  "updated_at": "2025-04-10T09:15:00Z",
+  "author": "user-123"
+}
+```
+
+### User API
+
+#### Get User Profile
+
+```
+GET /api/users/profile
+```
+
+Get the current user's profile.
+
+**Response**
+
+```json
+{
+  "id": "user-123",
+  "username": "chef_coder",
+  "display_name": "Chef Coder",
+  "email": "chef@example.com",
+  "location": "Boston",
+  "bio": "Passionate about cooking and coding.",
+  "preferences": {
+    "theme": "dark",
+    "notifications": true,
+    "language": "en"
+  },
+  "created_at": "2025-01-01T00:00:00Z"
+}
+```
+
+#### Update Profile
+
+```
+PUT /api/users/profile
+```
+
+Update the current user's profile.
+
+**Request Body**
+
+```json
+{
+  "display_name": "Master Chef Coder",
+  "location": "New York",
+  "bio": "Professional chef and programmer.",
+  "preferences": {
+    "theme": "light",
+    "notifications": true,
+    "language": "en"
+  }
+}
+```
+
+**Response**
+
+```json
+{
+  "id": "user-123",
+  "username": "chef_coder",
+  "display_name": "Master Chef Coder",
+  "email": "chef@example.com",
+  "location": "New York",
+  "bio": "Professional chef and programmer.",
+  "preferences": {
+    "theme": "light",
+    "notifications": true,
+    "language": "en"
+  },
+  "created_at": "2025-01-01T00:00:00Z"
+}
+```
+
+#### Get Kitchen Configuration
+
+```
+GET /api/users/kitchen
+```
+
+Get the current user's kitchen configuration.
+
+**Response**
+
+```json
+{
+  "id": "kitchen-123",
+  "name": "My Boston Kitchen",
+  "location": "Boston",
+  "equipment": [
+    {
+      "id": "sink-1",
+      "type": "sink",
+      "name": "Kitchen Sink",
+      "quantity": 1,
+      "properties": {}
+    },
+    {
+      "id": "cutting-board-1",
+      "type": "cutting-board",
+      "name": "Wooden Cutting Board",
+      "quantity": 2,
+      "properties": {
+        "material": "wood",
+        "size": "large"
+      }
+    },
+    {
+      "id": "chef-knife-1",
+      "type": "chef-knife",
+      "name": "8-inch Chef's Knife",
+      "quantity": 2,
+      "properties": {
+        "sharpness": "very-sharp"
+      }
+    },
+    {
+      "id": "paring-knife-1",
+      "type": "paring-knife",
+      "name": "Paring Knife",
+      "quantity": 1,
+      "properties": {}
+    },
+    {
+      "id": "gas-burner-1",
+      "type": "gas-burner",
+      "name": "Gas Stove Burner",
+      "quantity": 1,
+      "properties": {
+        "btu": 15000
+      }
+    },
+    {
+      "id": "refrigerator-1",
+      "type": "refrigerator",
+      "name": "Refrigerator",
+      "quantity": 1,
+      "properties": {
+        "temperature": 4
+      }
+    }
+  ],
+  "layout": {
+    "dimensions": {
+      "width": 400,
+      "height": 300
+    },
+    "zones": [
+      {
+        "id": "prep-zone",
+        "name": "Prep Area",
+        "position": {"x": 50, "y": 50},
+        "size": {"width": 200, "height": 100}
+      },
+      {
+        "id": "cooking-zone",
+        "name": "Cooking Area",
+        "position": {"x": 50, "y": 160},
+        "size": {"width": 200, "height": 100}
+      }
+    ]
+  }
+}
+```
+
+### Social API
+
+#### Get Shared Recipes
+
+```
+GET /api/social/shared-recipes
+```
+
+Get a list of recipes shared with the current user.
+
+**Response**
+
+```json
+[
+  {
+    "id": "shared-123",
+    "recipe": {
+      "id": "french-onion-soup",
+      "name": "French Onion Soup",
+      "category": "Soups",
+      "difficulty": "intermediate"
+    },
+    "shared_by": {
+      "id": "user-456",
+      "username": "michelin_star",
+      "display_name": "Professional Chef"
+    },
+    "shared_at": "2025-03-15T14:30:00Z",
+    "message": "Try this amazing onion soup recipe!"
+  }
+]
+```
+
+#### Share Recipe
+
+```
+POST /api/social/share
+```
+
+Share a recipe with other users.
+
+**Request Body**
+
+```json
+{
+  "recipe_id": "garlic-aioli",
+  "user_ids": ["user-456", "user-789"],
+  "message": "Check out my homemade aioli recipe!"
+}
+```
+
+**Response**
+
+```json
+{
+  "success": true,
+  "shared_with": ["user-456", "user-789"]
+}
+```
+
+## Error Handling
+
+All API endpoints use standard HTTP status codes to indicate success or failure:
+
+- `200 OK`: Request successful
+- `201 Created`: Resource created successfully
+- `400 Bad Request`: Invalid request (details in response body)
+- `401 Unauthorized`: Authentication required
+- `403 Forbidden`: Insufficient permissions
+- `404 Not Found`: Resource not found
+- `500 Internal Server Error`: Server error
+
+Error responses include detailed information:
+
+```json
+{
+  "error": {
+    "code": "invalid_input",
+    "message": "Invalid parameters provided",
+    "details": {
+      "field": "difficulty",
+      "issue": "must be one of: beginner, intermediate, advanced, expert"
+    }
+  }
+}
+```
+
+## Rate Limiting
+
+API requests are subject to rate limiting:
+
+- 60 requests per minute for authenticated users
+- 10 requests per minute for unauthenticated requests
+
+Rate limit information is included in response headers:
+
+- `X-RateLimit-Limit`: Maximum number of requests allowed
+- `X-RateLimit-Remaining`: Number of requests remaining
+- `X-RateLimit-Reset`: Time when the rate limit resets (Unix timestamp)
+
+When rate limits are exceeded, the API returns a `429 Too Many Requests` status code.
+
+## Versioning
+
+The API uses versioning in the URL path:
+
+```
+https://api.cuisinecode.com/v1/...
+```
+
+The current version is `v1`. When breaking changes are introduced, a new version (e.g., `v2`) will be released while maintaining backward compatibility for existing versions.
+
+## Webhooks
+
+For real-time updates, you can register webhook endpoints:
+
+```
+POST /api/webhooks
+```
+
+**Request Body**
+
+```json
+{
+  "url": "https://your-server.com/webhook",
+  "events": ["recipe.created", "recipe.shared", "kitchen.updated"],
+  "secret": "your-webhook-secret"
+}
+```
+
+Webhook payloads are signed using the provided secret, allowing you to verify their authenticity.
+
+## SDK Examples
+
+### JavaScript
+
+```javascript
+import { CuisineCodeClient } from 'cuisine-code-sdk';
+
+const client = new CuisineCodeClient({
+  apiKey: 'your-api-key'
+});
+
+// Push ingredients to the stack
+await client.kitchen.push({
+  name: 'butter',
+  properties: { state: 'solid', temperature: 4 }
+});
+
+await client.kitchen.push({
+  name: 'herbs',
+  properties: { type: 'fresh' }
+});
+
+// Apply a transformation
+const result = await client.kitchen.transform('chop', { style: 'fine' });
+
+console.log(result);
+```
+
+### Python
+
+```python
+from cuisine_code import CuisineCodeClient
+
+client = CuisineCodeClient(api_key='your-api-key')
+
+# Push ingredients to the stack
+client.kitchen.push(
+    name='butter',
+    properties={'state': 'solid', 'temperature': 4}
+)
+
+client.kitchen.push(
+    name='herbs',
+    properties={'type': 'fresh'}
+)
+
+# Apply a transformation
+result = client.kitchen.transform('chop', style='fine')
+
+print(result)
+```
+
+## Additional Resources
+
+- [Getting Started Guide](./getting-started.md)
+- [API Changelog](./api-changelog.md)
+- [WebSocket API Documentation](./websocket-api.md)
+- [OAuth Integration Guide](./oauth-integration.md)
+#+END_SRC
+
+* Production Server Configuration
+** NGINX Configuration
+
+#+BEGIN_SRC nginx :tangle config/nginx-production.conf :mkdirp yes
+# Cuisine Code Production NGINX Configuration
+# Copyright (c) 2025 Aidan Pace
+
+# HTTP to HTTPS redirect
+server {
+    listen 80;
+    server_name cc.fx.net www.cc.fx.net;
+    
+    location / {
+        return 301 https://$host$request_uri;
+    }
+    
+    # Let's Encrypt challenges
+    location /.well-known/acme-challenge/ {
+        root /var/www/certbot;
+    }
+}
+
+# Main HTTPS server
+server {
+    listen 443 ssl http2;
+    server_name cc.fx.net www.cc.fx.net;
+    
+    # SSL configuration
+    ssl_certificate /etc/letsencrypt/live/cc.fx.net/fullchain.pem;
+    ssl_certificate_key /etc/letsencrypt/live/cc.fx.net/privkey.pem;
+    ssl_trusted_certificate /etc/letsencrypt/live/cc.fx.net/chain.pem;
+    
+    # SSL settings
+    ssl_protocols TLSv1.2 TLSv1.3;
+    ssl_prefer_server_ciphers on;
+    ssl_ciphers ECDHE-ECDSA-AES128-GCM-SHA256:ECDHE-RSA-AES128-GCM-SHA256:ECDHE-ECDSA-AES256-GCM-SHA384:ECDHE-RSA-AES256-GCM-SHA384:ECDHE-ECDSA-CHACHA20-POLY1305:ECDHE-RSA-CHACHA20-POLY1305:DHE-RSA-AES128-GCM-SHA256:DHE-RSA-AES256-GCM-SHA384;
+    ssl_session_timeout 1d;
+    ssl_session_cache shared:SSL:10m;
+    ssl_session_tickets off;
+    
+    # HSTS (15768000 seconds = 6 months)
+    add_header Strict-Transport-Security "max-age=15768000; includeSubDomains; preload";
+    
+    # Security headers
+    add_header X-Content-Type-Options nosniff;
+    add_header X-Frame-Options SAMEORIGIN;
+    add_header X-XSS-Protection "1; mode=block";
+    add_header Referrer-Policy no-referrer-when-downgrade;
+    add_header Content-Security-Policy "default-src 'self'; script-src 'self'; style-src 'self'; img-src 'self' data:; font-src 'self'; connect-src 'self' wss://*.cc.fx.net; frame-ancestors 'self'; form-action 'self';";
+    
+    # Root directory
+    root /var/www/cuisine-code;
+    index index.html;
+    
+    # Static files with caching
+    location ~* \.(js|css|png|jpg|jpeg|gif|ico|svg|woff|woff2|ttf|otf|eot)$ {
+        expires 30d;
+        add_header Cache-Control "public, no-transform";
+        try_files $uri =404;
+    }
+    
+    # WebAssembly files
+    location ~* \.(wasm)$ {
+        expires 30d;
+        add_header Cache-Control "public, no-transform";
+        add_header Content-Type "application/wasm";
+        try_files $uri =404;
+    }
+    
+    # API proxy
+    location /api/ {
+        proxy_pass http://api-server:3000/;
+        proxy_http_version 1.1;
+        proxy_set_header Upgrade $http_upgrade;
+        proxy_set_header Connection "upgrade";
+        proxy_set_header Host $host;
+        proxy_set_header X-Real-IP $remote_addr;
+        proxy_set_header X-Forwarded-For $proxy_add_x_forwarded_for;
+        proxy_set_header X-Forwarded-Proto $scheme;
+        proxy_buffering off;
+        
+        # Rate limiting
+        limit_req zone=api burst=20 nodelay;
+        
+        # Timeouts
+        proxy_connect_timeout 60s;
+        proxy_send_timeout 60s;
+        proxy_read_timeout 60s;
+    }
+    
+    # WebSocket proxy for collaboration
+    location /ws/ {
+        proxy_pass http://api-server:3001/;
+        proxy_http_version 1.1;
+        proxy_set_header Upgrade $http_upgrade;
+        proxy_set_header Connection "upgrade";
+        proxy_set_header Host $host;
+        proxy_set_header X-Real-IP $remote_addr;
+        proxy_set_header X-Forwarded-For $proxy_add_x_forwarded_for;
+        proxy_set_header X-Forwarded-Proto $scheme;
+        
+        # WebSocket specific settings
+        proxy_read_timeout 300s;
+        proxy_send_timeout 300s;
+    }
+    
+    # Health check endpoint
+    location /health {
+        access_log off;
+        return 200 "OK";
+    }
+    
+    # Main app - serve index.html for all routes (SPA support)
+    location / {
+        try_files $uri $uri/ /index.html;
+    }
+    
+    # Error pages
+    error_page 404 /404.html;
+    error_page 500 502 503 504 /50x.html;
+    
+    # Logging
+    access_log /var/log/nginx/cuisine-code-access.log;
+    error_log /var/log/nginx/cuisine-code-error.log warn;
+}
+
+# API server
+upstream api-server {
+    server cuisine-api-1:3000;
+    server cuisine-api-2:3000;
+    server cuisine-api-3:3000;
+    
+    keepalive 32;
+}
+
+# Rate limiting settings
+limit_req_zone $binary_remote_addr zone=api:10m rate=10r/s;
+limit_req_zone $binary_remote_addr zone=web:10m rate=20r/s;
+#+END_SRC
+
+** System Service Configuration
+
+#+BEGIN_SRC ini :tangle config/cuisine-code.service :mkdirp yes
+[Unit]
+Description=Cuisine Code API Server
+After=network.target postgresql.service
+Wants=postgresql.service
+
+[Service]
+Type=simple
+User=cuisine
+Group=cuisine
+WorkingDirectory=/opt/cuisine-code
+ExecStart=/usr/local/bin/guile -L . -e main scheme/src/server/main.scm
+Restart=on-failure
+RestartSec=5
+Environment=NODE_ENV=production
+Environment=PORT=3000
+Environment=DB_HOST=localhost
+Environment=DB_PORT=5432
+Environment=DB_USER=cuisine
+Environment=DB_PASSWORD=cuisine_password
+Environment=DB_NAME=cuisine_code
+
+# Security settings
+NoNewPrivileges=true
+PrivateTmp=true
+ProtectSystem=full
+ProtectHome=true
+PrivateDevices=true
+ProtectKernelTunables=true
+ProtectKernelModules=true
+ProtectControlGroups=true
+RestrictAddressFamilies=AF_INET AF_INET6 AF_UNIX
+RestrictNamespaces=true
+
+# Resource limits
+CPUQuota=50%
+MemoryLimit=1G
+TasksMax=50
+LimitNOFILE=10000
+
+[Install]
+WantedBy=multi-user.target
+#+END_SRC
+
+* Metrics Collection
+** Prometheus Exporters
+
+#+BEGIN_SRC javascript :tangle scheme/src/server/metrics.scm :mkdirp yes
+;;; metrics.scm -- Prometheus metrics for Cuisine Code
+;;; Copyright (c) 2025 Aidan Pace
+
+(define-module (cuisine-code server metrics)
+  #:use-module (web server)
+  #:use-module (web response)
+  #:use-module (web uri)
+  #:export (make-metrics-middleware
+            register-metric
+            increment-counter
+            observe-histogram
+            set-gauge))
+
+;; Metrics registry
+(define *metrics-registry* '())
+
+;; Register a new metric
+(define (register-metric type name help labels)
+  (let ((metric (list (cons 'type type)
+                      (cons 'name name)
+                      (cons 'help help)
+                      (cons 'labels labels)
+                      (cons 'values (make-hash-table)))))
+    (set! *metrics-registry* (cons metric *metrics-registry*))
+    metric))
+
+;; Increment a counter metric
+(define (increment-counter metric label-values &optional (value 1))
+  (let ((values (assoc-ref metric 'values))
+        (key (string-join label-values "_")))
+    (hash-table-set! values key
+                    (+ (or (hash-table-ref values key 0) 0) value))))
+
+;; Observe a value in a histogram metric
+(define (observe-histogram metric label-values value)
+  (let ((values (assoc-ref metric 'values))
+        (key (string-join label-values "_")))
+    (let ((buckets (or (hash-table-ref values key #f)
+                       (let ((new-buckets (make-default-buckets)))
+                         (hash-table-set! values key new-buckets)
+                         new-buckets))))
+      (observe-bucket buckets value))))
+
+;; Set a gauge metric value
+(define (set-gauge metric label-values value)
+  (let ((values (assoc-ref metric 'values))
+        (key (string-join label-values "_")))
+    (hash-table-set! values key value)))
+
+;; Helper function to create default histogram buckets
+(define (make-default-buckets)
+  (list (cons 'buckets '(0.005 0.01 0.025 0.05 0.1 0.25 0.5 1 2.5 5 10))
+        (cons 'counts (make-hash-table))
+        (cons 'sum 0)
+        (cons 'count 0)))
+
+;; Helper function to observe a value in histogram buckets
+(define (observe-bucket buckets value)
+  (let ((bucket-limits (assoc-ref buckets 'buckets))
+        (counts (assoc-ref buckets 'counts)))
+    (for-each (lambda (limit)
+                (when (<= value limit)
+                  (hash-table-set! counts (number->string limit)
+                                  (+ (hash-table-ref counts (number->string limit) 0) 1))))
+              bucket-limits)
+    ;; Update sum and count
+    (set-cdr! (assoc 'sum buckets) (+ (assoc-ref buckets 'sum) value))
+    (set-cdr! (assoc 'count buckets) (+ (assoc-ref buckets 'count) 1))))
+
+;; Format metrics in Prometheus exposition format
+(define (format-metrics)
+  (define (format-metric metric)
+    (let ((type (assoc-ref metric 'type))
+          (name (assoc-ref metric 'name))
+          (help (assoc-ref metric 'help))
+          (labels (assoc-ref metric 'labels))
+          (values (assoc-ref metric 'values)))
+      (let ((output (string-append "# HELP " name " " help "\n"
+                                  "# TYPE " name " " (symbol->string type) "\n")))
+        (hash-table-for-each
+         values
+         (lambda (label-key value)
+           (let ((label-values (string-split label-key "_")))
+             (cond
+              ((eq? type 'counter)
+               (set! output (string-append output
+                                         (format-labels name labels label-values)
+                                         " " (number->string value) "\n")))
+              ((eq? type 'gauge)
+               (set! output (string-append output
+                                         (format-labels name labels label-values)
+                                         " " (number->string value) "\n")))
+              ((eq? type 'histogram)
+               (for-each
+                (lambda (bucket-limit)
+                  (let ((count (hash-table-ref (assoc-ref value 'counts) 
+                                             (number->string bucket-limit)
+                                             0)))
+                    (set! output (string-append output
+                                              (format-labels 
+                                               (string-append name "_bucket")
+                                               (append labels '("le"))
+                                               (append label-values (list (number->string bucket-limit))))
+                                              " " (number->string count) "\n"))))
+                (assoc-ref value 'buckets))
+               ;; Add sum and count
+               (set! output (string-append output
+                                         (format-labels 
+                                          (string-append name "_sum")
+                                          labels label-values)
+                                         " " (number->string (assoc-ref value 'sum)) "\n"))
+               (set! output (string-append output
+                                         (format-labels 
+                                          (string-append name "_count")
+                                          labels label-values)
+                                         " " (number->string (assoc-ref value 'count)) "\n")))))))
+        output)))
+  
+  (string-join (map format-metric *metrics-registry*) ""))
+
+;; Format labels for Prometheus output
+(define (format-labels name labels values)
+  (if (null? labels)
+      name
+      (string-append name "{"
+                    (string-join
+                     (map (lambda (label value)
+                            (string-append (symbol->string label) "=\"" value "\""))
+                          labels values)
+                     ",")
+                    "}")))
+
+;; Create metrics middleware for the web server
+(define (make-metrics-middleware)
+  (lambda (next)
+    (lambda (request body)
+      (if (equal? (uri-path (request-uri request)) "/metrics")
+          (values (build-response #:code 200
+                                 #:headers '((content-type . (text/plain))))
+                 (format-metrics))
+          (next request body)))))
+
+;; Initialize default metrics
+(define request-counter
+  (register-metric 'counter "http_requests_total"
+                  "Total number of HTTP requests"
+                  '(method path status_code)))
+
+(define request-duration
+  (register-metric 'histogram "http_request_duration_seconds"
+                  "HTTP request duration in seconds"
+                  '(method path)))
+
+(define active_connections
+  (register-metric 'gauge "http_active_connections"
+                  "Number of active HTTP connections"
+                  '()))
+
+;; Set initial active connections to 0
+(set-gauge active_connections '() 0)
+#+END_SRC
+
+** Metrics Middleware
+
+#+BEGIN_SRC javascript :tangle scheme/src/server/middleware.scm :mkdirp yes
+;;; middleware.scm -- Web server middleware for Cuisine Code
+;;; Copyright (c) 2025 Aidan Pace
+
+(define-module (cuisine-code server middleware)
+  #:use-module (web server)
+  #:use-module (web request)
+  #:use-module (web response)
+  #:use-module (web uri)
+  #:use-module (cuisine-code server metrics)
+  #:export (make-logging-middleware
+            make-timing-middleware
+            make-cors-middleware
+            make-auth-middleware))
+
+;; Logging middleware
+(define (make-logging-middleware)
+  (lambda (next)
+    (lambda (request body)
+      (let ((start-time (current-time)))
+        (format #t "[~a] ~a ~a~%"
+                (strftime "%Y-%m-%d %H:%M:%S" (localtime (current-time)))
+                (request-method request)
+                (uri-path (request-uri request)))
+        
+        ;; Increment request counter
+        (increment-counter request-counter
+                          (list (symbol->string (request-method request))
+                                (uri-path (request-uri request))
+                                "pending"))
+        
+        ;; Process request
+        (let-values (((response response-body) (next request body)))
+          
+          ;; Log response
+          (let* ((end-time (current-time))
+                 (duration (- end-time start-time))
+                 (status-code (response-code response)))
+            
+            (format #t "[~a] ~a ~a ~a ~a ms~%"
+                    (strftime "%Y-%m-%d %H:%M:%S" (localtime end-time))
+                    (request-method request)
+                    (uri-path (request-uri request))
+                    status-code
+                    (* duration 1000))
+            
+            ;; Update metrics
+            (increment-counter request-counter
+                              (list (symbol->string (request-method request))
+                                    (uri-path (request-uri request))
+                                    (number->string status-code)))
+            
+            (observe-histogram request-duration
+                              (list (symbol->string (request-method request))
+                                    (uri-path (request-uri request)))
+                              duration))
+          
+          ;; Return the response
+          (values response response-body))))))
+
+;; Timing middleware for performance measurement
+(define (make-timing-middleware)
+  (lambda (next)
+    (lambda (request body)
+      (let ((start-time (current-time)))
+        (let-values (((response response-body) (next request body)))
+          (let* ((end-time (current-time))
+                 (duration (- end-time start-time)))
+            
+            ;; Add timing header
+            (let ((headers (response-headers response)))
+              (values (build-response
+                       #:version (response-version response)
+                       #:code (response-code response)
+                       #:reason-phrase (response-reason-phrase response)
+                       #:headers (cons (cons 'x-response-time 
+                                            (format #f "~a ms" (* duration 1000)))
+                                      headers))
+                     response-body))))))))
+response-body)))))))
+
+;; CORS middleware
+(define (make-cors-middleware allowed-origins)
+  (lambda (next)
+    (lambda (request body)
+      (let-values (((response response-body) (next request body)))
+        (let* ((origin (request-header request 'origin))
+               (is-allowed (or (equal? allowed-origins "*")
+                              (and origin (member origin allowed-origins)))))
+          (if is-allowed
+              (values (build-response
+                       #:version (response-version response)
+                       #:code (response-code response)
+                       #:reason-phrase (response-reason-phrase response)
+                       #:headers (append (response-headers response)
+                                        `((access-control-allow-origin . ,origin)
+                                          (access-control-allow-methods . "GET, POST, PUT, DELETE, OPTIONS")
+                                          (access-control-allow-headers . "Content-Type, Authorization")
+                                          (access-control-max-age . "86400"))))
+                     response-body)
+              (values response response-body)))))))
+
+;; Authentication middleware
+(define (make-auth-middleware auth-function)
+  (lambda (next)
+    (lambda (request body)
+      (let ((auth-header (request-header request 'authorization)))
+        (if (not auth-header)
+            ;; No authentication header
+            (if (public-path? (uri-path (request-uri request)))
+                ;; Public path, proceed without auth
+                (next request body)
+                ;; Protected path, return 401
+                (values (build-response
+                         #:code 401
+                         #:headers '((content-type . (application/json))))
+                       "{\"error\":{\"code\":\"unauthorized\",\"message\":\"Authentication required\"}}"))
+            ;; Authentication header present, validate
+            (let ((token (extract-token auth-header)))
+              (if (not token)
+                  ;; Invalid token format
+                  (values (build-response
+                           #:code 401
+                           #:headers '((content-type . (application/json))))
+                         "{\"error\":{\"code\":\"invalid_token\",\"message\":\"Invalid authentication token format\"}}")
+                  ;; Validate token
+                  (let ((user-info (auth-function token)))
+                    (if user-info
+                        ;; Valid token, add user info to request
+                        (next (add-user-to-request request user-info) body)
+                        ;; Invalid token
+                        (values (build-response
+                                 #:code 401
+                                 #:headers '((content-type . (application/json))))
+                               "{\"error\":{\"code\":\"invalid_token\",\"message\":\"Invalid or expired authentication token\"}}"))))))))))
+
+;; Helper functions for auth middleware
+(define (public-path? path)
+  (or (string=? path "/health")
+      (string=? path "/metrics")
+      (string=? path "/api/auth/login")
+      (string=? path "/api/auth/register")))
+
+(define (extract-token auth-header)
+  (let ((parts (string-split auth-header " ")))
+    (if (and (= (length parts) 2)
+             (string-ci=? (car parts) "bearer"))
+        (cadr parts)
+        #f)))
+
+(define (add-user-to-request request user-info)
+  (let ((props (request-properties request)))
+    (request-set-properties! request (cons (cons 'user user-info) props))
+    request))
+#+END_SRC
+
+* Database Setup
+** Schema Definition
+
+#+BEGIN_SRC sql :tangle db/schema.sql :mkdirp yes
+-- Cuisine Code Database Schema
+-- Copyright (c) 2025 Aidan Pace
+
+-- Enable UUID extension
+CREATE EXTENSION IF NOT EXISTS "uuid-ossp";
+
+-- Users Table
+CREATE TABLE users (
+    id UUID PRIMARY KEY DEFAULT uuid_generate_v4(),
+    username VARCHAR(50) UNIQUE NOT NULL,
+    email VARCHAR(255) UNIQUE NOT NULL,
+    password_hash VARCHAR(255) NOT NULL,
+    display_name VARCHAR(100),
+    bio TEXT,
+    location VARCHAR(100),
+    preferences JSONB DEFAULT '{}'::jsonb,
+    created_at TIMESTAMP WITH TIME ZONE DEFAULT NOW(),
+    updated_at TIMESTAMP WITH TIME ZONE DEFAULT NOW(),
+    last_login TIMESTAMP WITH TIME ZONE
+);
+
+-- Kitchens Table
+CREATE TABLE kitchens (
+    id UUID PRIMARY KEY DEFAULT uuid_generate_v4(),
+    user_id UUID NOT NULL REFERENCES users(id) ON DELETE CASCADE,
+    name VARCHAR(100) NOT NULL,
+    location VARCHAR(100),
+    equipment JSONB NOT NULL DEFAULT '{}'::jsonb,
+    layout JSONB NOT NULL DEFAULT '{}'::jsonb,
+    created_at TIMESTAMP WITH TIME ZONE DEFAULT NOW(),
+    updated_at TIMESTAMP WITH TIME ZONE DEFAULT NOW()
+);
+
+-- Ingredients Table
+CREATE TABLE ingredients (
+    id UUID PRIMARY KEY DEFAULT uuid_generate_v4(),
+    name VARCHAR(100) NOT NULL,
+    category VARCHAR(50) NOT NULL,
+    properties JSONB NOT NULL DEFAULT '{}'::jsonb,
+    created_at TIMESTAMP WITH TIME ZONE DEFAULT NOW(),
+    updated_at TIMESTAMP WITH TIME ZONE DEFAULT NOW()
+);
+
+-- Transformations Table
+CREATE TABLE transformations (
+    id VARCHAR(50) PRIMARY KEY,
+    name VARCHAR(100) NOT NULL,
+    category VARCHAR(50) NOT NULL,
+    description TEXT,
+    parameters JSONB NOT NULL DEFAULT '{}'::jsonb,
+    created_at TIMESTAMP WITH TIME ZONE DEFAULT NOW(),
+    updated_at TIMESTAMP WITH TIME ZONE DEFAULT NOW()
+);
+
+-- Recipes Table
+CREATE TABLE recipes (
+    id UUID PRIMARY KEY DEFAULT uuid_generate_v4(),
+    slug VARCHAR(100) UNIQUE NOT NULL,
+    name VARCHAR(100) NOT NULL,
+    category VARCHAR(50) NOT NULL,
+    difficulty VARCHAR(20) NOT NULL CHECK (difficulty IN ('beginner', 'intermediate', 'advanced', 'expert')),
+    description TEXT,
+    ingredients JSONB NOT NULL,
+    steps JSONB NOT NULL,
+    expected_result JSONB,
+    is_public BOOLEAN DEFAULT true,
+    user_id UUID REFERENCES users(id) ON DELETE SET NULL,
+    created_at TIMESTAMP WITH TIME ZONE DEFAULT NOW(),
+    updated_at TIMESTAMP WITH TIME ZONE DEFAULT NOW()
+);
+
+-- Recipe Executions Table
+CREATE TABLE recipe_executions (
+    id UUID PRIMARY KEY DEFAULT uuid_generate_v4(),
+    recipe_id UUID NOT NULL REFERENCES recipes(id) ON DELETE CASCADE,
+    user_id UUID NOT NULL REFERENCES users(id) ON DELETE CASCADE,
+    steps_completed INT NOT NULL DEFAULT 0,
+    result JSONB,
+    started_at TIMESTAMP WITH TIME ZONE DEFAULT NOW(),
+    completed_at TIMESTAMP WITH TIME ZONE,
+    duration_seconds INT
+);
+
+-- Recipe Ratings Table
+CREATE TABLE recipe_ratings (
+    id UUID PRIMARY KEY DEFAULT uuid_generate_v4(),
+    recipe_id UUID NOT NULL REFERENCES recipes(id) ON DELETE CASCADE,
+    user_id UUID NOT NULL REFERENCES users(id) ON DELETE CASCADE,
+    rating INT NOT NULL CHECK (rating BETWEEN 1 AND 5),
+    review TEXT,
+    created_at TIMESTAMP WITH TIME ZONE DEFAULT NOW(),
+    updated_at TIMESTAMP WITH TIME ZONE DEFAULT NOW(),
+    UNIQUE (recipe_id, user_id)
+);
+
+-- Recipe Sharing Table
+CREATE TABLE recipe_sharing (
+    id UUID PRIMARY KEY DEFAULT uuid_generate_v4(),
+    recipe_id UUID NOT NULL REFERENCES recipes(id) ON DELETE CASCADE,
+    shared_by UUID NOT NULL REFERENCES users(id) ON DELETE CASCADE,
+    shared_with UUID NOT NULL REFERENCES users(id) ON DELETE CASCADE,
+    message TEXT,
+    shared_at TIMESTAMP WITH TIME ZONE DEFAULT NOW(),
+    UNIQUE (recipe_id, shared_by, shared_with)
+);
+
+-- Friend Connections Table
+CREATE TABLE friend_connections (
+    id UUID PRIMARY KEY DEFAULT uuid_generate_v4(),
+    user_id UUID NOT NULL REFERENCES users(id) ON DELETE CASCADE,
+    friend_id UUID NOT NULL REFERENCES users(id) ON DELETE CASCADE,
+    status VARCHAR(20) NOT NULL CHECK (status IN ('pending', 'accepted', 'declined')),
+    created_at TIMESTAMP WITH TIME ZONE DEFAULT NOW(),
+    updated_at TIMESTAMP WITH TIME ZONE DEFAULT NOW(),
+    UNIQUE (user_id, friend_id)
+);
+
+-- Session Tokens Table
+CREATE TABLE sessions (
+    id UUID PRIMARY KEY DEFAULT uuid_generate_v4(),
+    user_id UUID NOT NULL REFERENCES users(id) ON DELETE CASCADE,
+    token VARCHAR(255) UNIQUE NOT NULL,
+    expires_at TIMESTAMP WITH TIME ZONE NOT NULL,
+    created_at TIMESTAMP WITH TIME ZONE DEFAULT NOW(),
+    ip_address VARCHAR(45),
+    user_agent TEXT
+);
+
+-- API Keys Table
+CREATE TABLE api_keys (
+    id UUID PRIMARY KEY DEFAULT uuid_generate_v4(),
+    user_id UUID NOT NULL REFERENCES users(id) ON DELETE CASCADE,
+    key_name VARCHAR(100) NOT NULL,
+    key_prefix VARCHAR(10) NOT NULL,
+    key_hash VARCHAR(255) NOT NULL,
+    scopes TEXT[] NOT NULL,
+    expires_at TIMESTAMP WITH TIME ZONE,
+    created_at TIMESTAMP WITH TIME ZONE DEFAULT NOW(),
+    last_used_at TIMESTAMP WITH TIME ZONE
+);
+
+-- Webhooks Table
+CREATE TABLE webhooks (
+    id UUID PRIMARY KEY DEFAULT uuid_generate_v4(),
+    user_id UUID NOT NULL REFERENCES users(id) ON DELETE CASCADE,
+    name VARCHAR(100) NOT NULL,
+    url TEXT NOT NULL,
+    events TEXT[] NOT NULL,
+    secret_hash VARCHAR(255) NOT NULL,
+    is_active BOOLEAN DEFAULT true,
+    created_at TIMESTAMP WITH TIME ZONE DEFAULT NOW(),
+    updated_at TIMESTAMP WITH TIME ZONE DEFAULT NOW(),
+    last_triggered_at TIMESTAMP WITH TIME ZONE,
+    trigger_count INT DEFAULT 0
+);
+
+-- Audit Logs Table
+CREATE TABLE audit_logs (
+    id UUID PRIMARY KEY DEFAULT uuid_generate_v4(),
+    user_id UUID REFERENCES users(id) ON DELETE SET NULL,
+    action VARCHAR(50) NOT NULL,
+    resource_type VARCHAR(50) NOT NULL,
+    resource_id UUID,
+    details JSONB,
+    ip_address VARCHAR(45),
+    user_agent TEXT,
+    created_at TIMESTAMP WITH TIME ZONE DEFAULT NOW()
+);
+
+-- Create indexes
+CREATE INDEX idx_recipes_user_id ON recipes(user_id);
+CREATE INDEX idx_recipes_category ON recipes(category);
+CREATE INDEX idx_recipes_difficulty ON recipes(difficulty);
+CREATE INDEX idx_recipe_executions_user_id ON recipe_executions(user_id);
+CREATE INDEX idx_recipe_executions_recipe_id ON recipe_executions(recipe_id);
+CREATE INDEX idx_recipe_ratings_recipe_id ON recipe_ratings(recipe_id);
+CREATE INDEX idx_recipe_sharing_shared_with ON recipe_sharing(shared_with);
+CREATE INDEX idx_friend_connections_user_id ON friend_connections(user_id);
+CREATE INDEX idx_friend_connections_friend_id ON friend_connections(friend_id);
+CREATE INDEX idx_friend_connections_status ON friend_connections(status);
+CREATE INDEX idx_sessions_user_id ON sessions(user_id);
+CREATE INDEX idx_sessions_expires_at ON sessions(expires_at);
+CREATE INDEX idx_api_keys_user_id ON api_keys(user_id);
+CREATE INDEX idx_webhooks_user_id ON webhooks(user_id);
+CREATE INDEX idx_audit_logs_user_id ON audit_logs(user_id);
+CREATE INDEX idx_audit_logs_action ON audit_logs(action);
+CREATE INDEX idx_audit_logs_resource_type ON audit_logs(resource_type);
+CREATE INDEX idx_audit_logs_created_at ON audit_logs(created_at);
+
+-- Create updated_at trigger function
+CREATE OR REPLACE FUNCTION update_updated_at()
+RETURNS TRIGGER AS $$
+BEGIN
+    NEW.updated_at = NOW();
+    RETURN NEW;
+END;
+$$ LANGUAGE plpgsql;
+
+-- Create updated_at triggers
+CREATE TRIGGER update_users_updated_at
+BEFORE UPDATE ON users
+FOR EACH ROW EXECUTE FUNCTION update_updated_at();
+
+CREATE TRIGGER update_kitchens_updated_at
+BEFORE UPDATE ON kitchens
+FOR EACH ROW EXECUTE FUNCTION update_updated_at();
+
+CREATE TRIGGER update_ingredients_updated_at
+BEFORE UPDATE ON ingredients
+FOR EACH ROW EXECUTE FUNCTION update_updated_at();
+
+CREATE TRIGGER update_transformations_updated_at
+BEFORE UPDATE ON transformations
+FOR EACH ROW EXECUTE FUNCTION update_updated_at();
+
+CREATE TRIGGER update_recipes_updated_at
+BEFORE UPDATE ON recipes
+FOR EACH ROW EXECUTE FUNCTION update_updated_at();
+
+CREATE TRIGGER update_recipe_ratings_updated_at
+BEFORE UPDATE ON recipe_ratings
+FOR EACH ROW EXECUTE FUNCTION update_updated_at();
+
+CREATE TRIGGER update_friend_connections_updated_at
+BEFORE UPDATE ON friend_connections
+FOR EACH ROW EXECUTE FUNCTION update_updated_at();
+
+CREATE TRIGGER update_webhooks_updated_at
+BEFORE UPDATE ON webhooks
+FOR EACH ROW EXECUTE FUNCTION update_updated_at();
+#+END_SRC
+
+** Database Migration
+
+#+BEGIN_SRC bash :tangle scripts/db-migrate.sh :mkdirp yes
+#!/bin/bash
+# Database migration script for Cuisine Code
+# Copyright (c) 2025 Aidan Pace
+
+set -e
+
+# Configuration
+DB_HOST=${DB_HOST:-localhost}
+DB_PORT=${DB_PORT:-5432}
+DB_USER=${DB_USER:-cuisine}
+DB_PASSWORD=${DB_PASSWORD:-cuisine_password}
+DB_NAME=${DB_NAME:-cuisine_code}
+MIGRATIONS_DIR=${MIGRATIONS_DIR:-db/migrations}
+SCHEMA_FILE=${SCHEMA_FILE:-db/schema.sql}
+
+# Colors for output
+RED='\033[0;31m'
+GREEN='\033[0;32m'
+YELLOW='\033[0;33m'
+BLUE='\033[0;34m'
+NC='\033[0m' # No Color
+
+# Check if psql is available
+if ! command -v psql &> /dev/null; then
+    echo -e "${RED}Error: PostgreSQL client (psql) is not installed.${NC}"
+    exit 1
+fi
+
+# Function to display usage information
+function show_usage {
+    echo -e "${BLUE}Cuisine Code Database Migration Tool${NC}"
+    echo "Usage: $0 [options]"
+    echo
+    echo "Options:"
+    echo "  -h, --help              Show this help message"
+    echo "  -e, --env ENV           Environment (development, staging, production)"
+    echo "  -i, --init              Initialize the database schema"
+    echo "  -c, --create NAME       Create a new migration file"
+    echo "  -s, --status            Show migration status"
+    echo "  -u, --up [STEPS]        Apply migrations (default: all pending)"
+    echo "  -d, --down [STEPS]      Rollback migrations (default: 1)"
+    echo "  -v, --version VERSION   Migrate to specific version"
+}
+
+# Function to initialize the database schema
+function init_schema {
+    echo -e "${BLUE}Initializing database schema...${NC}"
+    
+    # Create migrations table if it doesn't exist
+    psql -h $DB_HOST -p $DB_PORT -U $DB_USER -d $DB_NAME -c "
+        CREATE TABLE IF NOT EXISTS migrations (
+            id SERIAL PRIMARY KEY,
+            version VARCHAR(20) NOT NULL,
+            name VARCHAR(255) NOT NULL,
+            applied_at TIMESTAMP WITH TIME ZONE DEFAULT NOW()
+        );
+    "
+    
+    # Apply schema
+    if [ -f "$SCHEMA_FILE" ]; then
+        echo -e "${BLUE}Applying schema from $SCHEMA_FILE...${NC}"
+        psql -h $DB_HOST -p $DB_PORT -U $DB_USER -d $DB_NAME -f "$SCHEMA_FILE"
+        echo -e "${GREEN}Schema initialized successfully.${NC}"
+    else
+        echo -e "${RED}Error: Schema file not found: $SCHEMA_FILE${NC}"
+        exit 1
+    fi
+}
+
+# Function to create a new migration file
+function create_migration {
+    local name=$1
+    
+    if [ -z "$name" ]; then
+        echo -e "${RED}Error: Migration name is required.${NC}"
+        exit 1
+    fi
+    
+    # Format the timestamp
+    local timestamp=$(date +"%Y%m%d%H%M%S")
+    local filename="${MIGRATIONS_DIR}/${timestamp}_${name}.sql"
+    
+    # Create migrations directory if it doesn't exist
+    mkdir -p $MIGRATIONS_DIR
+    
+    # Create migration file with template
+    cat > "$filename" << EOF
+-- Migration: $name
+-- Created at: $(date -u +"%Y-%m-%d %H:%M:%S UTC")
+
+-- Up Migration
+-- =============================================================================
+-- Write your UP migration SQL here
+
+-- Down Migration
+-- =============================================================================
+-- Write your DOWN migration SQL here
+
+EOF
+    
+    echo -e "${GREEN}Created migration file: $filename${NC}"
+}
+
+# Function to show migration status
+function show_status {
+    echo -e "${BLUE}Migration Status:${NC}"
+    
+    # Get applied migrations
+    applied=$(psql -h $DB_HOST -p $DB_PORT -U $DB_USER -d $DB_NAME -t -c "
+        SELECT version FROM migrations ORDER BY version;
+    " | tr -d ' ')
+    
+    # Get all migrations
+    all_migrations=$(find $MIGRATIONS_DIR -name "*.sql" | sort)
+    
+    if [ -z "$all_migrations" ]; then
+        echo -e "${YELLOW}No migration files found in $MIGRATIONS_DIR${NC}"
+        return
+    fi
+    
+    echo -e "Status | Version        | Name"
+    echo -e "-------|----------------|------------------"
+    
+    for migration in $all_migrations; do
+        filename=$(basename $migration)
+        version=${filename%%_*}
+        name=${filename#*_}
+        name=${name%.sql}
+        
+        if echo "$applied" | grep -q "$version"; then
+            status="${GREEN}Applied${NC}"
+        else
+            status="${YELLOW}Pending${NC}"
+        fi
+        
+        echo -e "$status | $version | $name"
+    done
+}
+
+# Function to apply migrations
+function apply_migrations {
+    local steps=$1
+    
+    # Get applied migrations
+    applied=$(psql -h $DB_HOST -p $DB_PORT -U $DB_USER -d $DB_NAME -t -c "
+        SELECT version FROM migrations ORDER BY version;
+    " | tr -d ' ')
+    
+    # Get all migrations
+    all_migrations=$(find $MIGRATIONS_DIR -name "*.sql" | sort)
+    
+    if [ -z "$all_migrations" ]; then
+        echo -e "${YELLOW}No migration files found in $MIGRATIONS_DIR${NC}"
+        return
+    fi
+    
+    # Find pending migrations
+    pending_migrations=()
+    for migration in $all_migrations; do
+        filename=$(basename $migration)
+        version=${filename%%_*}
+        
+        if ! echo "$applied" | grep -q "$version"; then
+            pending_migrations+=($migration)
+        fi
+    done
+    
+    if [ ${#pending_migrations[@]} -eq 0 ]; then
+        echo -e "${GREEN}No pending migrations.${NC}"
+        return
+    fi
+    
+    # Apply only the specified number of steps if provided
+    if [ -n "$steps" ] && [ $steps -gt 0 ]; then
+        if [ $steps -lt ${#pending_migrations[@]} ]; then
+            pending_migrations=("${pending_migrations[@]:0:$steps}")
+        fi
+    fi
+    
+    echo -e "${BLUE}Applying ${#pending_migrations[@]} migration(s)...${NC}"
+    
+    for migration in "${pending_migrations[@]}"; do
+        filename=$(basename $migration)
+        version=${filename%%_*}
+        name=${filename#*_}
+        name=${name%.sql}
+        
+        echo -e "${BLUE}Applying migration: $version $name${NC}"
+        
+        # Extract and apply the UP migration
+        sed -n '/^-- Up Migration/,/^-- Down Migration/p' "$migration" | 
+            grep -v "^-- Up Migration" | 
+            grep -v "^-- Down Migration" | 
+            grep -v "^--" | 
+            psql -h $DB_HOST -p $DB_PORT -U $DB_USER -d $DB_NAME -f -
+        
+        # Record the migration
+        psql -h $DB_HOST -p $DB_PORT -U $DB_USER -d $DB_NAME -c "
+            INSERT INTO migrations (version, name) VALUES ('$version', '$name');
+        "
+        
+        echo -e "${GREEN}Applied migration: $version $name${NC}"
+    done
+    
+    echo -e "${GREEN}Applied ${#pending_migrations[@]} migration(s) successfully.${NC}"
+}
+
+# Function to rollback migrations
+function rollback_migrations {
+    local steps=${1:-1}
+    
+    # Get applied migrations
+    applied=$(psql -h $DB_HOST -p $DB_PORT -U $DB_USER -d $DB_NAME -t -c "
+        SELECT version FROM migrations ORDER BY version DESC LIMIT $steps;
+    " | tr -d ' ')
+    
+    if [ -z "$applied" ]; then
+        echo -e "${YELLOW}No migrations to rollback.${NC}"
+        return
+    fi
+    
+    echo -e "${BLUE}Rolling back $steps migration(s)...${NC}"
+    
+    for version in $applied; do
+        # Find the migration file
+        migration=$(find $MIGRATIONS_DIR -name "${version}_*.sql")
+        
+        if [ -z "$migration" ]; then
+            echo -e "${RED}Error: Migration file for version $version not found.${NC}"
+            continue
+        fi
+        
+        filename=$(basename $migration)
+        name=${filename#*_}
+        name=${name%.sql}
+        
+        echo -e "${BLUE}Rolling back migration: $version $name${NC}"
+        
+        # Extract and apply the DOWN migration
+        sed -n '/^-- Down Migration/,$ p' "$migration" | 
+            grep -v "^-- Down Migration" | 
+            grep -v "^--" | 
+            psql -h $DB_HOST -p $DB_PORT -U $DB_USER -d $DB_NAME -f -
+        
+        # Remove the migration record
+        psql -h $DB_HOST -p $DB_PORT -U $DB_USER -d $DB_NAME -c "
+            DELETE FROM migrations WHERE version = '$version';
+        "
+        
+        echo -e "${GREEN}Rolled back migration: $version $name${NC}"
+    done
+    
+    echo -e "${GREEN}Rolled back $steps migration(s) successfully.${NC}"
+}
+
+# Function to migrate to a specific version
+function migrate_to_version {
+    local target_version=$1
+    
+    if [ -z "$target_version" ]; then
+        echo -e "${RED}Error: Target version is required.${NC}"
+        exit 1
+    fi
+    
+    # Get applied migrations
+    applied=$(psql -h $DB_HOST -p $DB_PORT -U $DB_USER -d $DB_NAME -t -c "
+        SELECT version FROM migrations ORDER BY version;
+    " | tr -d ' ')
+    
+    # Get all migrations
+    all_migrations=$(find $MIGRATIONS_DIR -name "*.sql" | sort)
+    
+    if [ -z "$all_migrations" ]; then
+        echo -e "${YELLOW}No migration files found in $MIGRATIONS_DIR${NC}"
+        return
+    fi
+    
+    # Check if target version exists
+    target_file=$(find $MIGRATIONS_DIR -name "${target_version}_*.sql")
+    
+    if [ -z "$target_file" ]; then
+        echo -e "${RED}Error: Migration file for version $target_version not found.${NC}"
+        exit 1
+    fi
+    
+    # Determine the latest applied version
+    latest_applied=$(echo "$applied" | tail -n 1)
+    
+    if [ -z "$latest_applied" ]; then
+        # No migrations applied, we need to go forward
+        echo -e "${BLUE}Migrating forward to version $target_version...${NC}"
+        
+        # Collect migrations to apply
+        migrations_to_apply=()
+        for migration in $all_migrations; do
+            filename=$(basename $migration)
+            version=${filename%%_*}
+            
+            if [ "$version" -le "$target_version" ]; then
+                migrations_to_apply+=($migration)
+            fi
+        done
+        
+        # Apply migrations
+        for migration in "${migrations_to_apply[@]}"; do
+            filename=$(basename $migration)
+            version=${filename%%_*}
+            name=${filename#*_}
+            name=${name%.sql}
+            
+            echo -e "${BLUE}Applying migration: $version $name${NC}"
+            
+            # Extract and apply the UP migration
+            sed -n '/^-- Up Migration/,/^-- Down Migration/p' "$migration" | 
+                grep -v "^-- Up Migration" | 
+                grep -v "^-- Down Migration" | 
+                grep -v "^--" | 
+                psql -h $DB_HOST -p $DB_PORT -U $DB_USER -d $DB_NAME -f -
+            
+            # Record the migration
+            psql -h $DB_HOST -p $DB_PORT -U $DB_USER -d $DB_NAME -c "
+                INSERT INTO migrations (version, name) VALUES ('$version', '$name');
+            "
+            
+            echo -e "${GREEN}Applied migration: $version $name${NC}"
+        done
+    elif [ "$latest_applied" -lt "$target_version" ]; then
+        # We need to go forward
+        echo -e "${BLUE}Migrating forward to version $target_version...${NC}"
+        
+        # Collect migrations to apply
+        migrations_to_apply=()
+        for migration in $all_migrations; do
+            filename=$(basename $migration)
+            version=${filename%%_*}
+            
+            if [ "$version" -gt "$latest_applied" ] && [ "$version" -le "$target_version" ]; then
+                migrations_to_apply+=($migration)
+            fi
+        done
+        
+        # Apply migrations
+        for migration in "${migrations_to_apply[@]}"; do
+            filename=$(basename $migration)
+            version=${filename%%_*}
+            name=${filename#*_}
+            name=${name%.sql}
+            
+            echo -e "${BLUE}Applying migration: $version $name${NC}"
+            
+            # Extract and apply the UP migration
+            sed -n '/^-- Up Migration/,/^-- Down Migration/p' "$migration" | 
+                grep -v "^-- Up Migration" | 
+                grep -v "^-- Down Migration" | 
+                grep -v "^--" | 
+                psql -h $DB_HOST -p $DB_PORT -U $DB_USER -d $DB_NAME -f -
+            
+            # Record the migration
+            psql -h $DB_HOST -p $DB_PORT -U $DB_USER -d $DB_NAME -c "
+                INSERT INTO migrations (version, name) VALUES ('$version', '$name');
+            "
+            
+            echo -e "${GREEN}Applied migration: $version $name${NC}"
+        done
+    elif [ "$latest_applied" -gt "$target_version" ]; then
+        # We need to go backward
+        echo -e "${BLUE}Migrating backward to version $target_version...${NC}"
+        
+        # Get migrations to roll back
+        rollback_versions=$(psql -h $DB_HOST -p $DB_PORT -U $DB_USER -d $DB_NAME -t -c "
+            SELECT version FROM migrations WHERE version > '$target_version' ORDER BY version DESC;
+        " | tr -d ' ')
+        
+        for version in $rollback_versions; do
+            # Find the migration file
+            migration=$(find $MIGRATIONS_DIR -name "${version}_*.sql")
+            
+            if [ -z "$migration" ]; then
+                echo -e "${RED}Error: Migration file for version $version not found.${NC}"
+                continue
+            fi
+            
+            filename=$(basename $migration)
+            name=${filename#*_}
+            name=${name%.sql}
+            
+            echo -e "${BLUE}Rolling back migration: $version $name${NC}"
+            
+            # Extract and apply the DOWN migration
+            sed -n '/^-- Down Migration/,$ p' "$migration" | 
+                grep -v "^-- Down Migration" | 
+                grep -v "^--" | 
+                psql -h $DB_HOST -p $DB_PORT -U $DB_USER -d $DB_NAME -f -
+            
+            # Remove the migration record
+            psql -h $DB_HOST -p $DB_PORT -U $DB_USER -d $DB_NAME -c "
+                DELETE FROM migrations WHERE version = '$version';
+            "
+            
+            echo -e "${GREEN}Rolled back migration: $version $name${NC}"
+        done
+    else
+        echo -e "${GREEN}Already at version $target_version.${NC}"
+    fi
+    
+    echo -e "${GREEN}Migration to version $target_version completed.${NC}"
+}
+
+# Main script logic
+if [ $# -eq 0 ]; then
+    show_usage
+    exit 0
+fi
+
+while [[ $# -gt 0 ]]; do
+    case $1 in
+        -h|--help)
+            show_usage
+            exit 0
+            ;;
+        -e|--env)
+            ENV=$2
+            shift 2
+            ;;
+        -i|--init)
+            init_schema
+            shift
+            ;;
+        -c|--create)
+            create_migration "$2"
+            shift 2
+            ;;
+        -s|--status)
+            show_status
+            shift
+            ;;
+        -u|--up)
+            if [[ $2 =~ ^[0-9]+$ ]]; then
+                apply_migrations $2
+                shift 2
+            else
+                apply_migrations
+                shift
+            fi
+            ;;
+        -d|--down)
+            if [[ $2 =~ ^[0-9]+$ ]]; then
+                rollback_migrations $2
+                shift 2
+            else
+                rollback_migrations
+                shift
+            fi
+            ;;
+        -v|--version)
+            migrate_to_version "$2"
+            shift 2
+            ;;
+        *)
+            echo -e "${RED}Error: Unknown option: $1${NC}"
+            show_usage
+            exit 1
+            ;;
+    esac
+done
+#+END_SRC
+
+* WebSocket Implementation
+** Collaborative Cooking
+
+#+BEGIN_SRC scheme :tangle scheme/src/server/websocket.scm :mkdirp yes
+;;; websocket.scm -- WebSocket server for collaborative cooking
+;;; Copyright (c) 2025 Aidan Pace
+
+(define-module (cuisine-code server websocket)
+  #:use-module (web server)
+  #:use-module (web request)
+  #:use-module (web response)
+  #:use-module (web uri)
+  #:use-module (json)
+  #:export (start-websocket-server
+            broadcast-message
+            send-message-to-user
+            register-client))
+
+;; Client connections
+(define *clients* '())
+
+;; Client types
+(define-record-type <client>
+  (make-client id user-id socket room-id)
+  client?
+  (id client-id)          ; Connection ID
+  (user-id client-user-id) ; User ID
+  (socket client-socket)   ; WebSocket connection
+  (room-id client-room-id client-set-room-id!)) ; Room ID (for collaborative sessions)
+
+;; Start WebSocket server
+(define (start-websocket-server port)
+  (let ((server (make-websocket-server port)))
+    (server 'start)
+    server))
+
+;; Create WebSocket server
+(define (make-websocket-server port)
+  (let ((server (make-http-server))
+        (running #f))
+    
+    ;; Configure server to handle WebSocket connections
+    (server 'handler (make-websocket-handler))
+    
+    ;; Server interface
+    (lambda (command . args)
+      (case command
+        ((start)
+         (set! running #t)
+         (server 'listen port)
+         (format #t "WebSocket server started on port ~a~%" port))
+        
+        ((stop)
+         (set! running #f)
+         (server 'close))
+        
+        ((status)
+         (if running 'running 'stopped))
+        
+        ((clients)
+         *clients*)
+        
+        (else (error "Unknown WebSocket server command:" command))))))
+
+;; WebSocket handler
+(define (make-websocket-handler)
+  (lambda (request body)
+    (if (websocket-request? request)
+        ;; Handle WebSocket upgrade
+        (handle-websocket-upgrade request)
+        ;; Regular HTTP request
+        (values (build-response #:code 400)
+                "Not a WebSocket request"))))
+
+;; Check if request is a WebSocket upgrade
+(define (websocket-request? request)
+  (and (equal? (request-method request) 'GET)
+       (equal? (request-header request 'upgrade) "websocket")
+       (equal? (request-header request 'connection) "Upgrade")))
+
+;; Handle WebSocket upgrade
+(define (handle-websocket-upgrade request)
+  ;; This is a simplified placeholder - a real implementation
+  ;; would perform the WebSocket handshake and establish connection
+  (format #t "Received WebSocket upgrade request~%")
+  
+  ;; Extract user authentication
+  (let ((auth-token (request-header request 'authorization)))
+    (if auth-token
+        (let ((user-id (validate-auth-token auth-token)))
+          (if user-id
+              ;; Create new client and connection
+              (let ((client-id (generate-unique-id))
+                    (socket (create-websocket-connection)))
+                (register-client client-id user-id socket #f)
+                (format #t "WebSocket connection established for user ~a~%" user-id)
+                
+                ;; Return upgrade response
+                (values (build-response
+                         #:code 101
+                         #:reason-phrase "Switching Protocols"
+                         #:headers '((upgrade . "websocket")
+                                    (connection . "Upgrade")))
+                       #f))
+              ;; Invalid auth token
+              (values (build-response #:code 401)
+                     "Unauthorized")))
+        ;; No auth token
+        (values (build-response #:code 401)
+               "Unauthorized"))))
+
+;; Register a client connection
+(define (register-client client-id user-id socket room-id)
+  (set! *clients*
+        (cons (make-client client-id user-id socket room-id)
+              *clients*)))
+
+;; Validate authentication token
+(define (validate-auth-token token)
+  ;; This is a placeholder - in a real application, you would
+  ;; validate the token and extract the user ID
+  (if (string? token)
+      (let ((parts (string-split token " ")))
+        (if (and (= (length parts) 2)
+                 (string-ci=? (car parts) "bearer"))
+            (let ((jwt (cadr parts)))
+              ;; Parse and validate JWT - this is simplified
+              (if (> (string-length jwt) 10)
+                  (string-append "user-" (substring jwt 0 6))
+                  #f))
+            #f))
+      #f))
+
+;; Generate a unique client ID
+(define (generate-unique-id)
+  (format #f "ws-~a" (random 1000000)))
+
+;; Create WebSocket connection
+(define (create-websocket-connection)
+  ;; This is a placeholder - in a real implementation, you would
+  ;; create a proper WebSocket connection object
+  (format #t "Creating WebSocket connection~%")
+  'websocket-connection)
+
+;; Send message to a specific user
+(define (send-message-to-user user-id message)
+  (let ((user-clients (filter (lambda (client)
+                               (equal? (client-user-id client) user-id))
+                             *clients*)))
+    (for-each (lambda (client)
+                (send-message (client-socket client) message))
+              user-clients)))
+
+;; Broadcast message to room
+(define (broadcast-message room-id message)
+  (let ((room-clients (filter (lambda (client)
+                               (equal? (client-room-id client) room-id))
+                             *clients*)))
+    (for-each (lambda (client)
+                (send-message (client-socket client) message))
+              room-clients)))
+
+;; Send message to WebSocket
+(define (send-message socket message)
+  ;; This is a placeholder - in a real implementation, you would
+  ;; send the message through the WebSocket
+  (format #t "Sending message to socket: ~a~%" message))
+
+;; WebSocket message handling
+(define (handle-websocket-message client message)
+  (let ((data (json-string->scm message)))
+    (case (assoc-ref data 'type)
+      ((join-room)
+       (let ((room-id (assoc-ref data 'room_id)))
+         (client-set-room-id! client room-id)
+         (format #t "Client ~a joined room ~a~%"
+                 (client-id client) room-id)
+         (broadcast-message room-id
+                           (scm->json-string
+                            `((type . "user-joined")
+                              (user_id . ,(client-user-id client)))))))
+      
+      ((leave-room)
+       (let ((room-id (client-room-id client)))
+         (client-set-room-id! client #f)
+         (format #t "Client ~a left room ~a~%"
+                 (client-id client) room-id)
+         (broadcast-message room-id
+                           (scm->json-string
+                            `((type . "user-left")
+                              (user_id . ,(client-user-id client)))))))
+      
+      ((kitchen-update)
+       (let ((room-id (client-room-id client))
+             (stack (assoc-ref data 'stack)))
+         (format #t "Kitchen update in room ~a~%" room-id)
+         (broadcast-message room-id
+                           (scm->json-string
+                            `((type . "kitchen-update")
+                              (user_id . ,(client-user-id client))
+                              (stack . ,stack))))))
+      
+      ((chat-message)
+       (let ((room-id (client-room-id client))
+             (text (assoc-ref data 'text)))
+         (format #t "Chat message in room ~a: ~a~%"
+                 room-id text)
+         (broadcast-message room-id
+                           (scm->json-string
+                            `((type . "chat-message")
+                              (user_id . ,(client-user-id client))
+                              (text . ,text)
+                              (timestamp . ,(current-time)))))))
+      
+      (else
+       (format #t "Unknown message type: ~a~%"
+               (assoc-ref data 'type))))))
+#+END_SRC
+
+* Final Touches
+** README Update
+
+#+BEGIN_SRC markdown :tangle README.md :mkdirp yes
+# Cuisine Code
+
+Learn stack-based computing through French culinary metaphors.
+
+![Cuisine Code Logo](docs/logo.png)
+
+## Overview
+
+Cuisine Code is an educational game that teaches programming concepts through the familiar and engaging world of French cuisine. By representing computational operations as cooking techniques, the game makes abstract concepts tangible and intuitive.
+
+### Key Features
+
+- **Stack-Based Operations**: Learn fundamental computing concepts through cooking operations
+- **French Culinary Focus**: Master authentic techniques from mirepoix to mother sauces
+- **Visual Feedback**: See your stack operations through beautiful culinary visualizations
+- **Progressive Learning**: Advance from simple preparations to complex recipes
+- **Social Cooking**: Share recipes and cook collaboratively with friends (v4.0)
+- **Cross-Platform**: Play in your terminal or browser
+
+## Getting Started
+
+### Installation
+
+```bash
+# Clone the repository
+git clone https://github.com/defrecord/cuisine-code.git
+cd cuisine-code
+
+# Install dependencies
+make deps
+
+# Build the project
+make all
+
+# Start the development server
+make serve
+```
+
+Visit `http://localhost:3000` in your browser to start cooking!
+
+### Basic Usage
+
+```scheme
+;; Create a new kitchen
+(define kitchen (make-kitchen))
+
+;; Push ingredients onto the stack
+(kitchen 'push "butter")
+(kitchen 'push "herbs")
+
+;; Apply transformations
+(kitchen 'transform 'chop '((style . 'fine)))
+
+;; See what's on the stack
+(kitchen 'stack)  ;; => ("fine-chopped-herbs" "butter")
+
+;; Apply more transformations
+(kitchen 'transform 'combine)
+;; => ("combined-butter-and-fine-chopped-herbs")
+```
+
+## Documentation
+
+- [Installation Guide](docs/installation.md)
+- [User Guide](docs/user-guide.md)
+- [API Reference](docs/api-reference.md)
+- [Development Guide](docs/development-guide.md)
+- [Contributing Guidelines](CONTRIBUTING.md)
+
+## Architecture
+
+Cuisine Code is built with a focus on functional programming principles using Scheme as its core language. The project structure follows a modular design:
+
+```
+cuisine-code/
+├── scheme/         # Scheme source code
+├── web/            # Web interface
+├── c-output/       # C compilation output
+├── tools/          # Development tools
+├── docs/           # Documentation
+├── scripts/        # Utility scripts
+└── config/         # Configuration files
+```
+
+## Built With
+
+- [Guile Scheme](https://www.gnu.org/software/guile/) - Core programming language
+- [Emscripten](https://emscripten.org/) - WebAssembly compilation
+- [Node.js](https://nodejs.org/) - Web development
+- [PostgreSQL](https://www.postgresql.org/) - Database
+
+## Contributing
+
+We welcome contributions! Please see [CONTRIBUTING.md](CONTRIBUTING.md) for guidelines.
+
+## License
+
+This project is licensed under the MIT License - see the [LICENSE](LICENSE) file for details.
+
+## Acknowledgments
+
+- The French culinary tradition for its rich techniques and vocabulary
+- Forth and other stack-based languages for inspiration
+- The FreeBSD community for support and infrastructure
+- All contributors who have helped shape the project
+#+END_SRC
+
+* Website Configuration
+** Product Page
+
+Now I'll outline the product website that will be hosted at cc.fx.net:
+
+#+BEGIN_SRC scheme :tangle docs/website-spec.md :mkdirp yes
+# Cuisine Code Website Specification (cc.fx.net)
+
+## Overview
+
+The Cuisine Code website at cc.fx.net will serve as the main landing page and product portal for the Cuisine Code educational platform. It will provide information about the product, allow users to sign up and log in, and serve as the entry point to the web application.
+
+## Site Structure
+
+### Primary Pages
+
+1. **Home** - Main landing page with key information and call-to-actions
+2. **Features** - Detailed description of product features
+3. **How It Works** - Explanation of the educational approach
+4. **Pricing** - Subscription and pricing information
+5. **Documentation** - User guides and API documentation
+6. **Blog** - Educational content and updates
+7. **Community** - Forums and shared recipes
+8. **About** - Company information
+9. **Contact** - Contact information and form
+
+### Application Pages (Authenticated)
+
+1. **Dashboard** - User's personal dashboard
+2. **Kitchen** - The main cooking/coding environment
+3. **Recipes** - Browse and manage recipes
+4. **Profile** - User profile management
+5. **Settings** - Account settings
+
+## Design Elements
+
+### Color Palette
+
+- Primary: #e74c3c (French Red)
+- Secondary: #3498db (Blue)
+- Accent: #f39c12 (Gold)
+- Neutral: Grays from #f8f9fa to #212529
+- White: #ffffff
+- Black: #000000
+
+### Typography
+
+- Headings: Playfair Display (serif)
+- Body: Open Sans (sans-serif)
+- Code: Fira Code (monospace)
+
+### Visual Language
+
+- French culinary-inspired iconography
+- Clean, minimal interface with subtle cooking textures
+- Visual stack representations using food illustrations
+- Responsive design for all device sizes
+
+## Home Page Components
+
+1. **Hero Section**
+   - Headline: "Learn Stack-Based Computing Through French Cooking"
+   - Subheadline: "Master programming concepts with the familiar metaphors of French cuisine"
+   - Primary CTA: "Start Cooking" (Sign up)
+   - Secondary CTA: "Try Demo" (No account needed)
+   - Visual: Animated kitchen stack visualization
+
+2. **Features Section**
+   - Stack-Based Operations
+   - French Culinary Techniques
+   - Visual Feedback
+   - Progressive Learning
+   - Social Cooking
+   - Cross-Platform
+
+3. **How It Works Section**
+   - Step 1: Push Ingredients
+   - Step 2: Apply Transformations
+   - Step 3: Create Recipes
+   - Step 4: Master Computing Concepts
+
+4. **Testimonials**
+   - Quotes from users (students, teachers, professionals)
+   - Rating badges
+
+5. **CTA Section**
+   - Headline: "Ready to Start Your Culinary Coding Journey?"
+   - CTA Button: "Get Started"
+
+6. **Footer**
+   - Navigation links
+   - Social media links
+   - Legal information
+   - Newsletter signup
+
+## Technical Implementation
+
+### Frontend Technologies
+
+- HTML5, CSS3, JavaScript
+- Responsive design with CSS Grid and Flexbox
+- Dark mode support
+- Progressive Web App capabilities
+
+### Performance Optimization
+
+- WebP image format
+- Lazy loading for images
+- Code splitting
+- CSS and JavaScript minification
+- HTTP/2 support
+- Browser caching
+
+### Accessibility
+
+- WCAG 2.1 AA compliance
+- Semantic HTML
+- Keyboard navigation
+- Screen reader support
+- Sufficient color contrast
+
+### SEO Optimization
+
+- Semantic HTML structure
+- Meta tags for all pages
+- Open Graph and Twitter Card meta tags
+- Structured data (JSON-LD)
+- XML sitemap
+- Canonical URLs
+
+### Analytics and Tracking
+
+- Google Analytics integration
+- Event tracking for key user actions
+- Conversion tracking for sign-ups
+- Heat mapping for UX improvements
+
+## Hosting and Infrastructure
+
+- DigitalOcean VPS
+- NGINX web server
+- Let's Encrypt SSL certificates
+- CloudFlare CDN
+- DDoS protection
+
+## Content Management
+
+Content will be primarily static with dynamic elements for:
+- Blog posts
+- Documentation updates
+- User testimonials
+- Pricing plans
+
+## Launch Plan
+
+1. **Pre-launch**
+   - Coming soon page with email signup
+   - Private beta access for early adopters
+   - Documentation preparation
+
+2. **Soft Launch**
+   - Basic feature set
+   - Early access program
+   - Gather user feedback
+
+3. **Full Launch**
+   - Complete feature set
+   - Marketing campaign
+   - Partner outreach
+
+4. **Post-launch**
+   - Regular content updates
+   - Feature enhancements based on feedback
+   - Community building
+
+## Maintenance and Updates
+
+- Weekly content updates
+- Monthly feature updates
+- Quarterly security audits
+- Continuous performance monitoring
+
+## Success Metrics
+
+- User sign-ups
+- Conversion rate
+- Session duration
+- Lesson completion rate
+- Retention rate
+- Net Promoter Score
+#+END_SRC
+
+Now our setup is complete, covering all aspects of the Cuisine Code project from implementation to deployment, monitoring, and website configuration.

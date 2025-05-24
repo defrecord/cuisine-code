@@ -1,0 +1,68 @@
+# Cuisine Code alert rules
+# Copyright (c) 2025 Aidan Pace
+
+groups:
+  - name: cuisine-alerts
+    rules:
+      - alert: APIHighErrorRate
+        expr: sum(rate(http_requests_total{job="cuisine-api",status_code=~"5.."}[5m])) / sum(rate(http_requests_total{job="cuisine-api"}[5m])) > 0.05
+        for: 5m
+        labels:
+          severity: critical
+        annotations:
+          summary: "High API error rate"
+          description: "API error rate is above 5% for 5 minutes (current value: {{ $value | humanizePercentage }})"
+      
+      - alert: APIInstanceDown
+        expr: up{job="cuisine-api"} == 0
+        for: 1m
+        labels:
+          severity: critical
+        annotations:
+          summary: "API instance is down"
+          description: "API instance {{ $labels.instance }} has been down for more than 1 minute"
+      
+      - alert: APIHighResponseTime
+        expr: histogram_quantile(0.95, sum(rate(http_request_duration_seconds_bucket{job="cuisine-api"}[5m])) by (le)) > 0.5
+        for: 5m
+        labels:
+          severity: warning
+        annotations:
+          summary: "High API response time"
+          description: "95th percentile of API response time is above 500ms for 5 minutes (current value: {{ $value | humanizeDuration }})"
+      
+      - alert: DatabaseHighConnections
+        expr: pg_stat_activity_count{job="postgres-exporter",datname="cuisine_code"} > pg_settings_max_connections{job="postgres-exporter"} * 0.8
+        for: 5m
+        labels:
+          severity: warning
+        annotations:
+          summary: "High database connections"
+          description: "Database connections are above 80% of maximum for 5 minutes (current value: {{ $value }})"
+      
+      - alert: HighCPUUsage
+        expr: 100 - (avg by (instance) (irate(node_cpu_seconds_total{job="node-exporter",mode="idle"}[1m])) * 100) > 80
+        for: 5m
+        labels:
+          severity: warning
+        annotations:
+          summary: "High CPU usage"
+          description: "CPU usage on {{ $labels.instance }} is above 80% for 5 minutes (current value: {{ $value | humanizePercentage }})"
+      
+      - alert: HighMemoryUsage
+        expr: 100 * (1 - node_memory_MemAvailable_bytes{job="node-exporter"} / node_memory_MemTotal_bytes{job="node-exporter"}) > 80
+        for: 5m
+        labels:
+          severity: warning
+        annotations:
+          summary: "High memory usage"
+          description: "Memory usage on {{ $labels.instance }} is above 80% for 5 minutes (current value: {{ $value | humanizePercentage }})"
+      
+      - alert: HighDiskUsage
+        expr: 100 - ((node_filesystem_avail_bytes{job="node-exporter",fstype!="tmpfs"} * 100) / node_filesystem_size_bytes{job="node-exporter",fstype!="tmpfs"}) > 80
+        for: 5m
+        labels:
+          severity: warning
+        annotations:
+          summary: "High disk usage"
+          description: "Disk usage on {{ $labels.instance }} ({{ $labels.mountpoint }}) is above 80% for 5 minutes (current value: {{ $value | humanizePercentage }})"

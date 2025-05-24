@@ -1,0 +1,69 @@
+/* Light Theme for Cuisine Code
+   Copyright (c) 2025 Aidan Pace */
+
+:root {
+  /* Base Colors */
+  --color-primary: #e74c3c;          /* French red */
+  --color-primary-light: #f6928f;
+  --color-primary-dark: #c0392b;
+  
+  --color-secondary: #3498db;        /* Blue */
+  --color-secondary-light: #5dade2;
+  --color-secondary-dark: #2980b9;
+  
+  --color-accent: #f39c12;           /* Gold */
+  --color-accent-light: #f8c471;
+  --color-accent-dark: #d68910;
+  
+  /* Neutral Colors */
+  --color-white: #ffffff;
+  --color-gray-100: #f8f9fa;
+  --color-gray-200: #e9ecef;
+  --color-gray-300: #dee2e6;
+  --color-gray-400: #ced4da;
+  --color-gray-500: #adb5bd;
+  --color-gray-600: #6c757d;
+  --color-gray-700: #495057;
+  --color-gray-800: #343a40;
+  --color-gray-900: #212529;
+  --color-black: #000000;
+  
+  /* Semantic Colors */
+  --color-success: #28a745;
+  --color-info: #17a2b8;
+  --color-warning: #ffc107;
+  --color-danger: #dc3545;
+  
+  /* Background Colors */
+  --color-bg-primary: var(--color-white);
+  --color-bg-secondary: var(--color-gray-100);
+  --color-bg-tertiary: var(--color-gray-200);
+  
+  /* Text Colors */
+  --color-text: var(--color-gray-800);
+  --color-text-light: var(--color-gray-600);
+  --color-text-inverse: var(--color-white);
+  
+  /* Border Colors */
+  --color-border: var(--color-gray-300);
+  --color-border-light: var(--color-gray-200);
+  --color-border-dark: var(--color-gray-400);
+  
+  /* Code Colors */
+  --color-code-bg: var(--color-gray-100);
+  --color-code-text: var(--color-gray-800);
+  
+  /* Shadow */
+  --shadow-sm: 0 1px 2px rgba(0, 0, 0, 0.05);
+  --shadow-md: 0 4px 6px rgba(0, 0, 0, 0.1);
+  --shadow-lg: 0 10px 15px rgba(0, 0, 0, 0.1);
+  --shadow-xl: 0 20px 25px rgba(0, 0, 0, 0.1);
+}
+
+/* Dark Mode Toggle Icon */
+.theme-icon {
+  background-image: url('../../assets/icons/moon.svg');
+  width: 24px;
+  height: 24px;
+  display: block;
+}

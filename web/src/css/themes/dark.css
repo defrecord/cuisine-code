@@ -1,0 +1,83 @@
+/* Dark Theme for Cuisine Code
+   Copyright (c) 2025 Aidan Pace */
+
+:root {
+  /* Base Colors */
+  --color-primary: #f05545;          /* French red, slightly lightened */
+  --color-primary-light: #f6928f;
+  --color-primary-dark: #c0392b;
+  
+  --color-secondary: #3498db;        /* Blue */
+  --color-secondary-light: #5dade2;
+  --color-secondary-dark: #2980b9;
+  
+  --color-accent: #f39c12;           /* Gold */
+  --color-accent-light: #f8c471;
+  --color-accent-dark: #d68910;
+  
+  /* Neutral Colors - inverted */
+  --color-white: #121212;
+  --color-gray-100: #212529;
+  --color-gray-200: #343a40;
+  --color-gray-300: #495057;
+  --color-gray-400: #6c757d;
+  --color-gray-500: #adb5bd;
+  --color-gray-600: #ced4da;
+  --color-gray-700: #dee2e6;
+  --color-gray-800: #e9ecef;
+  --color-gray-900: #f8f9fa;
+  --color-black: #ffffff;
+  
+  /* Semantic Colors */
+  --color-success: #28a745;
+  --color-info: #17a2b8;
+  --color-warning: #ffc107;
+  --color-danger: #dc3545;
+  
+  /* Background Colors */
+  --color-bg-primary: #121212;
+  --color-bg-secondary: #1e1e1e;
+  --color-bg-tertiary: #2d2d2d;
+  
+  /* Text Colors */
+  --color-text: #e9ecef;
+  --color-text-light: #ced4da;
+  --color-text-inverse: #121212;
+  
+  /* Border Colors */
+  --color-border: #495057;
+  --color-border-light: #343a40;
+  --color-border-dark: #6c757d;
+  
+  /* Code Colors */
+  --color-code-bg: #2d2d2d;
+  --color-code-text: #e9ecef;
+  
+  /* Shadow */
+  --shadow-sm: 0 1px 2px rgba(0, 0, 0, 0.3);
+  --shadow-md: 0 4px 6px rgba(0, 0, 0, 0.4);
+  --shadow-lg: 0 10px 15px rgba(0, 0, 0, 0.4);
+  --shadow-xl: 0 20px 25px rgba(0, 0, 0, 0.4);
+}
+
+/* Light Mode Toggle Icon */
+.theme-icon {
+  background-image: url('../../assets/icons/sun.svg');
+  width: 24px;
+  height: 24px;
+  display: block;
+}
+
+/* Dark Mode Specific Adjustments */
+body {
+  background-color: var(--color-bg-primary);
+  color: var(--color-text);
+}
+
+.site-header, .site-footer {
+  background-color: var(--color-bg-secondary);
+}
+
+img {
+  filter: brightness(0.9);
+}

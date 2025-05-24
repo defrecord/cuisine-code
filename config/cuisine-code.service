@@ -1,0 +1,41 @@
+[Unit]
+Description=Cuisine Code API Server
+After=network.target postgresql.service
+Wants=postgresql.service
+
+[Service]
+Type=simple
+User=cuisine
+Group=cuisine
+WorkingDirectory=/opt/cuisine-code
+ExecStart=/usr/local/bin/guile -L . -e main scheme/src/server/main.scm
+Restart=on-failure
+RestartSec=5
+Environment=NODE_ENV=production
+Environment=PORT=3000
+Environment=DB_HOST=localhost
+Environment=DB_PORT=5432
+Environment=DB_USER=cuisine
+Environment=DB_PASSWORD=cuisine_password
+Environment=DB_NAME=cuisine_code
+
+# Security settings
+NoNewPrivileges=true
+PrivateTmp=true
+ProtectSystem=full
+ProtectHome=true
+PrivateDevices=true
+ProtectKernelTunables=true
+ProtectKernelModules=true
+ProtectControlGroups=true
+RestrictAddressFamilies=AF_INET AF_INET6 AF_UNIX
+RestrictNamespaces=true
+
+# Resource limits
+CPUQuota=50%
+MemoryLimit=1G
+TasksMax=50
+LimitNOFILE=10000
+
+[Install]
+WantedBy=multi-user.target
